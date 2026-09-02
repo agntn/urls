@@ -1,5 +1,8 @@
 # @agntn/urls
 
+[![npm version](https://img.shields.io/npm/v/%40agntn%2Furls?style=flat&colorA=130f40&colorB=474787)](https://npmjs.com/package/@agntn/urls)
+[![license](https://img.shields.io/github/license/agntn/urls?style=flat&colorA=130f40&colorB=474787)](https://github.com/agntn/urls/blob/main/LICENSE)
+
 Passive URL discovery for AI agents and the CLI: one API over the public sources that already
 index the web, with no active scanning.
 
@@ -7,6 +10,25 @@ URLFinder from ProjectDiscovery shows how useful this is in practice - point it 
 it returns the URLs that Wayback, AlienVault OTX, Common Crawl, URLScan, and VirusTotal have seen
 for it. `@agntn/urls` is the TypeScript version of that idea: five sources, one `discover()`
 call, deduplicated and scoped to the domain you asked about.
+
+## Install into agent hosts
+
+Both agent extensions reuse the same env vars as the library
+(`URLSCAN_API_KEY`, `VIRUSTOTAL_API_KEY`).
+
+```bash
+# Pi
+pi install git:github.com/agntn/urls
+
+# OMP
+omp plugin install /absolute/path/to/this/repo
+
+# MCP
+claude mcp add urls --scope user -- node "$PWD/dist/cli.mjs" mcp
+```
+
+Provided tools: `urls_discover` (enumerate URLs for a domain) and `urls_providers` (which
+sources are registered and which need a key).
 
 ## Install
 

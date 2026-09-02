@@ -5,6 +5,7 @@
   "keywords": [
     "agents",
     "cli",
+    "omp-extension",
     "osint",
     "pi-extension",
     "pi-package",
@@ -30,6 +31,9 @@
     "packages/pi/extensions"
   ],
   "type": "module",
+  "sideEffects": [
+    "./dist/_chunks/providers.mjs"
+  ],
   "main": "./dist/index.mjs",
   "types": "./dist/index.d.mts",
   "exports": {
