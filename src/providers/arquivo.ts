@@ -5,7 +5,7 @@
  * subdomains. Snapshot bodies belong to `@agntn/archives`; this adapter only enumerates URLs.
  *
  * Verified 2026-09-02: `output=txt` is rejected; omit `limit` and the CDX stream hangs with
- * HTTP 200 and an empty body. Requests always send `output=json`, `fields=url`, and a limit.
+ * HTTP 200 and an empty body. Requests always send `output=json`, `fields=url`, and a page-safeguard `limit`; the collector enforces the unique-result bound.
  *
  * API: https://arquivo.pt/wayback/cdx (REST, NDJSON)
  */
@@ -16,7 +16,6 @@ import type {
   ProviderCapabilities,
   ProviderConfig,
 } from "../core/types.ts";
-import { clampMaxResults } from "../core/types.ts";
 import { Provider } from "../core/provider.ts";
 import { buildQuery } from "../core/client.ts";
 import { UrlCollector, extractUrls, resolveDomain } from "../core/url.ts";
@@ -62,14 +61,13 @@ export class Arquivo extends Provider {
   async discover(domain: string, options?: DiscoverOptions): Promise<DiscoveredUrl[]> {
     const target = resolveDomain(domain, "arquivo");
     const collector = new UrlCollector(options, domain);
-    const limit = clampMaxResults(options?.limit, CDX_PAGE_LIMIT);
 
     const apiURL = `${this.baseUrl}/wayback/cdx${buildQuery({
       url: target,
       matchType: "domain",
       output: "json",
       fields: "url",
-      limit,
+      limit: CDX_PAGE_LIMIT,
     })}`;
 
     for await (const line of this.getTextLines(apiURL, {

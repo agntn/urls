@@ -47,12 +47,15 @@ describe("arquivo provider", () => {
     expect(requestUrl).not.toContain("output=txt");
   });
 
-  it("sends the caller limit to CDX because the API hangs without one", async () => {
+  it("sends a page-safeguard CDX limit, not the unique-result bound", async () => {
     const fetch = stubText(CDX_BODY);
 
-    await (await create("arquivo")).discover("example.com", { limit: 2 });
+    const urls = await (await create("arquivo")).discover("example.com", { limit: 2 });
 
-    expect(String(fetch.mock.calls[0]?.[0] as string)).toContain("limit=2");
+    expect(urls).toHaveLength(2);
+    const requestUrl = String(fetch.mock.calls[0]?.[0] as string);
+    expect(requestUrl).toContain("limit=10000");
+    expect(requestUrl).not.toMatch(/[?&]limit=2(?:&|$)/);
   });
 
   it("drops off-scope lines silently", async () => {

@@ -7,7 +7,7 @@ Keep AGENTS.md updated with project status.
 - Scaffolded as an `@agntn` provider library inspired by `projectdiscovery/urlfinder`: unified
   passive URL discovery over seven sources (alienvault, arquivo, commoncrawl, urlscan, vefsafn, virustotal, wayback)
   with CLI, Pi/OMP extensions, MCP server, and AI SDK tools.
-- Full gate green: lint (shared `@agntn/ox` + repo-local allow-list extension), typecheck
+- Full gate green: lint (shared `@agntn/ox` spread; readonly allow-list is host ABI and three classes), typecheck
   (tsc + extensions), unit tests, and the three eval gates (CLI, MCP, packed) in offline and
   live mode.
 - Global CLI (`urls`) installed and smoke-tested.
