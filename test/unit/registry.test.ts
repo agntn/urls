@@ -39,6 +39,7 @@ describe("registry", () => {
       "arquivo",
       "commoncrawl",
       "urlscan",
+      "vefsafn",
       "virustotal",
       "wayback",
     ]);

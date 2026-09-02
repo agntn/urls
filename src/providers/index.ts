@@ -36,6 +36,12 @@ export const builtins: readonly ProviderEntry[] = [
     load: () => import("./urlscan.ts").then((m) => m.UrlScan),
   },
   {
+    key: "vefsafn",
+    capabilities: { discover: true },
+    defaultURL: "https://vefsafn.is",
+    load: () => import("./vefsafn.ts").then((m) => m.Vefsafn),
+  },
+  {
     key: "virustotal",
     capabilities: { discover: true },
     defaultURL: "https://www.virustotal.com/api/v3",

@@ -104,7 +104,7 @@ describe("urls Pi extension", () => {
     const result = await tool.execute("test", {}, undefined, undefined, unusedContext);
 
     const text = (result.content[0] as { text: string }).text;
-    expect(text).toMatch(/^Registered providers \(6\):/);
+    expect(text).toMatch(/^Registered providers \(7\):/);
     expect(text).toContain("alienvault");
     expect(text).toContain("virustotal");
   });

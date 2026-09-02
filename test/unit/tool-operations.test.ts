@@ -56,6 +56,7 @@ describe("runDiscover", () => {
         "arquivo",
         "commoncrawl",
         "urlscan",
+        "vefsafn",
         "virustotal",
         "wayback",
       ]);

@@ -5,7 +5,7 @@ Keep AGENTS.md updated with project status.
 ## Status
 
 - Scaffolded as an `@agntn` provider library inspired by `projectdiscovery/urlfinder`: unified
-  passive URL discovery over six sources (alienvault, arquivo, commoncrawl, urlscan, virustotal, wayback)
+  passive URL discovery over seven sources (alienvault, arquivo, commoncrawl, urlscan, vefsafn, virustotal, wayback)
   with CLI, Pi/OMP extensions, MCP server, and AI SDK tools.
 - Full gate green: lint (shared `@agntn/ox` + repo-local allow-list extension), typecheck
   (tsc + extensions), unit tests, and the three eval gates (CLI, MCP, packed) in offline and
@@ -76,14 +76,15 @@ test/eval-cli.mjs etc.     - packaged/CLI/MCP subprocess gates
 
 ## API audit (2026-09-02)
 
-| Source      | Verdict      | Notes                                                                                                                    |
-| ----------- | ------------ | ------------------------------------------------------------------------------------------------------------------------ |
-| alienvault  | live         | `otx.alienvault.com/api/v1/indicators/domain/{d}/url_list`, paginated                                                    |
+| Source      | Verdict      | Notes                                                                                                                           |
+| ----------- | ------------ | ------------------------------------------------------------------------------------------------------------------------------- |
+| alienvault  | live         | `otx.alienvault.com/api/v1/indicators/domain/{d}/url_list`, paginated                                                           |
 | arquivo     | live         | `arquivo.pt/wayback/cdx` NDJSON `matchType=domain`; `output=txt` rejected; omit `limit` hangs; snapshot bodies stay in archives |
-| wayback     | live         | `web.archive.org/cdx/search/cdx` text lines; `collapse=urlkey` variant hangs from this network, dedupe done in collector |
-| urlscan     | live         | answers without key at small volumes; cursor pagination via `search_after`                                               |
-| virustotal  | live (v3)    | legacy `vtapi/v2` answers 403 HTML (dead); v3 `domains/{d}/urls` with `x-apikey`                                         |
-| commoncrawl | blocked here | `index.commoncrawl.org` refused from this network; keep, tests mock HTTP                                                 |
+| wayback     | live         | `web.archive.org/cdx/search/cdx` text lines; `collapse=urlkey` variant hangs from this network, dedupe done in collector        |
+| urlscan     | live         | answers without key at small volumes; cursor pagination via `search_after`                                                      |
+| vefsafn     | live         | `vefsafn.is/cdx` NDJSON `matchType=domain`; `output=txt` rejected; `limit` ignored; snapshot bodies stay in archives            |
+| virustotal  | live (v3)    | legacy `vtapi/v2` answers 403 HTML (dead); v3 `domains/{d}/urls` with `x-apikey`                                                |
+| commoncrawl | blocked here | `index.commoncrawl.org` refused from this network; keep, tests mock HTTP                                                        |
 
 ## Status
 

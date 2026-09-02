@@ -42,6 +42,7 @@ describe("discoverAll", () => {
       "arquivo",
       "commoncrawl",
       "urlscan",
+      "vefsafn",
       "virustotal",
       "wayback",
     ]);
