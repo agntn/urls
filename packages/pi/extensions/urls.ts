@@ -98,17 +98,11 @@ export default function urlsExtension(pi: ExtensionAPI): void {
         filter: params.filter,
         noScope: params.noScope,
       };
-      if (lib.isAllProviders(params.provider)) {
-        const outcomes = await lib.discoverAll(params.domain, options);
-        return textResult(lib.formatDiscoverAll(params.domain, outcomes));
+      const outcome = await lib.runDiscover(params.domain, options, params.provider);
+      if (outcome.mode === "comparison") {
+        return textResult(lib.formatDiscoverAll(params.domain, outcome.outcomes));
       }
-      if (params.provider?.trim()) {
-        const selected = await lib.selectProvider(params.provider);
-        const discover = lib.requireOperation(selected.provider, "discover");
-        return textResult(formatUrlList(await discover(params.domain, options)));
-      }
-      const fallback = await lib.discoverWithFallback(params.domain, options);
-      return textResult(formatUrlList(fallback.result));
+      return textResult(formatUrlList(outcome.urls));
     },
   });
 

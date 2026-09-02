@@ -1,6 +1,6 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
-import { discoverAll, discoverWithFallback, serializeOutcomes } from "./core/all.ts";
+import { serializeOutcomes } from "./core/all.ts";
 import {
   domainInput,
   filterInput,
@@ -9,9 +9,8 @@ import {
   noScopeInput,
   providerInput,
 } from "./core/schemas.ts";
-import { requireOperation } from "./core/provider.ts";
 import { listProviders } from "./core/registry.ts";
-import { isAllProviders, selectProvider } from "./core/resolve.ts";
+import { runDiscover } from "./tool-operations.ts";
 import { version } from "./version.ts";
 
 function result(value: unknown): CallToolResult {
@@ -58,16 +57,11 @@ export function createMcpServer(): McpServer {
     },
     async ({ domain, limit, match, filter, noScope, provider }) => {
       const options = { limit, match, filter, noScope };
-      if (isAllProviders(provider)) {
-        return result(serializeOutcomes(await discoverAll(domain, options)));
+      const outcome = await runDiscover(domain, options, provider);
+      if (outcome.mode === "comparison") {
+        return result(serializeOutcomes(outcome.outcomes));
       }
-      if (provider?.trim()) {
-        const selected = await selectProvider(provider);
-        const discover = requireOperation(selected.provider, "discover");
-        return providerResult(selected.name, await discover(domain, options));
-      }
-      const fallback = await discoverWithFallback(domain, options);
-      return providerResult(fallback.provider, fallback.result);
+      return providerResult(outcome.provider, outcome.urls);
     },
   );
 

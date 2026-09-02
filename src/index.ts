@@ -30,6 +30,8 @@ export { isAllProviders, resolveProvider, selectProvider } from "./core/resolve.
 export type { SelectedProvider } from "./core/resolve.ts";
 export { discoverAll, discoverWithFallback, serializeOutcomes } from "./core/all.ts";
 export type { ProviderOutcome, SerializedOutcome } from "./core/all.ts";
+export { runDiscover } from "./tool-operations.ts";
+export type { DiscoverResult } from "./tool-operations.ts";
 export {
   formatDiscoverAll,
   formatProviders,
