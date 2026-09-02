@@ -23,8 +23,8 @@ afterEach(() => {
 });
 
 describe("commoncrawl provider", () => {
-  it("serves discover", () => {
-    expect(create("commoncrawl").capabilities).toEqual({ discover: true });
+  it("serves discover", async () => {
+    expect((await create("commoncrawl")).capabilities).toEqual({ discover: true });
   });
 
   it("queries the newest index per year and continues past failing years", async () => {
@@ -44,7 +44,7 @@ describe("commoncrawl provider", () => {
     });
     vi.stubGlobal("fetch", fetch);
 
-    const urls = await create("commoncrawl").discover("example.com");
+    const urls = await (await create("commoncrawl")).discover("example.com");
 
     const requested = fetch.mock.calls.map((call) => String(call[0] as string));
     expect(requested.filter((url) => url.includes("collinfo.json"))).toHaveLength(1);
@@ -74,7 +74,7 @@ describe("commoncrawl provider", () => {
     });
     vi.stubGlobal("fetch", fetch);
 
-    await create("commoncrawl").discover("example.com");
+    await (await create("commoncrawl")).discover("example.com");
 
     const requests = fetch.mock.calls.map((call) => String(call[0] as string));
     expect(requests.filter((url) => url.includes("index?url="))).toHaveLength(3); // one per year
@@ -83,7 +83,7 @@ describe("commoncrawl provider", () => {
   it("propagates a non-skippable collinfo transport failure", async () => {
     stubJSON({ error: "unreachable" }, 0);
 
-    await expect(create("commoncrawl").discover("example.com")).rejects.toMatchObject({
+    await expect((await create("commoncrawl")).discover("example.com")).rejects.toMatchObject({
       name: "HTTPError",
     });
   });
@@ -92,7 +92,7 @@ describe("commoncrawl provider", () => {
     const fetch = stubJSON({});
     fetch.mockRejectedValueOnce(new Error("should not be called"));
 
-    await expect(create("commoncrawl").discover("   ")).rejects.toMatchObject({
+    await expect((await create("commoncrawl")).discover("   ")).rejects.toMatchObject({
       name: "InvalidInputError",
     });
   });

@@ -17,7 +17,6 @@ import type {
 import { Provider } from "../core/provider.ts";
 import { UrlCollector, extractUrls, resolveDomain } from "../core/url.ts";
 import { UrlsError } from "../core/errors.ts";
-import { register } from "../core/registry.ts";
 
 /** Bounded pagination safeguard for a backend that can say `has_more` forever. */
 const MAX_PAGES = 50;
@@ -102,7 +101,7 @@ function buildSearchAfter(sort: readonly unknown[] | undefined): string {
   return `${first},${second}`;
 }
 
-class UrlScan extends Provider {
+export class UrlScan extends Provider {
   static readonly key = "urlscan";
 
   private readonly baseUrl: string;
@@ -140,5 +139,3 @@ class UrlScan extends Provider {
     return collector.results;
   }
 }
-
-register(UrlScan, "https://urlscan.io/api/v1/search/");

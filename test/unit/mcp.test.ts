@@ -45,7 +45,7 @@ describe("urls MCP server", () => {
 
       const text = await firstText(response);
       expect(text).toContain('"name": "alienvault"');
-      expect(text).toContain('"requiresConfiguration": true');
+      expect(text).toContain('"requiresKey": true');
       expect(text).toContain('"name": "wayback"');
     });
   });

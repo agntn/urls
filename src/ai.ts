@@ -16,7 +16,6 @@ import {
   noScopeInput,
   providerInput,
 } from "./core/schemas.ts";
-import "./providers/index.ts";
 
 const discoverInputSchema = z.object({
   domain: domainInput,
@@ -41,7 +40,7 @@ export const discoverTool: Tool<z.infer<typeof discoverInputSchema>, DiscoverToo
       return { comparison: serializeOutcomes(await discoverAll(domain, options)) };
     }
     if (provider?.trim()) {
-      const selected = selectProvider(provider);
+      const selected = await selectProvider(provider);
       const discover = requireOperation(selected.provider, "discover");
       const urls = await discover(domain, options);
       return { provider: selected.name, count: urls.length, urls };

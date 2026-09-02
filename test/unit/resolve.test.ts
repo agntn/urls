@@ -25,9 +25,9 @@ describe("resolveProvider", () => {
     expect(resolveProvider()).toBe("virustotal");
   });
 
-  it("treats empty and whitespace strings as absent", () => {
-    expect(selectProvider("   ").name).toBe("alienvault");
-    expect(selectProvider("").name).toBe("alienvault");
+  it("treats empty and whitespace strings as absent", async () => {
+    expect((await selectProvider("   ")).name).toBe("alienvault");
+    expect((await selectProvider("")).name).toBe("alienvault");
   });
 });
 
@@ -41,14 +41,14 @@ describe("isAllProviders", () => {
 });
 
 describe("selectProvider", () => {
-  it("returns a provider instance paired with its key", () => {
-    const selected = selectProvider("wayback");
+  it("returns a provider instance paired with its key", async () => {
+    const selected = await selectProvider("wayback");
 
     expect(selected.name).toBe("wayback");
     expect(selected.provider.name).toBe("wayback");
   });
 
-  it("throws for unknown providers", () => {
-    expect(() => selectProvider("missing")).toThrow(/Unknown provider: missing/);
+  it("throws for unknown providers", async () => {
+    await expect(selectProvider("missing")).rejects.toThrow(/Unknown provider: missing/);
   });
 });

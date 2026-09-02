@@ -89,7 +89,7 @@ check(
   "providers reports the sources and the unconfigured backend",
   providers.isError !== true &&
     firstText(providers).includes("alienvault") &&
-    firstText(providers).includes('"requiresConfiguration": true'),
+    firstText(providers).includes('"requiresKey": true'),
   firstText(providers),
 );
 

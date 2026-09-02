@@ -1,14 +1,24 @@
+import { readdirSync } from "node:fs";
+
 import { defineBuildConfig } from "obuild/config";
 
+/**
+ * One bundle: the four public entries plus every provider file as separate inputs. Each
+ * provider becomes its own lazy chunk (`dist/providers/<name>.mjs`) that the built-in manifest
+ * dynamic-imports on first create, so listing providers never loads their modules.
+ *
+ * The provider list is read from the directory instead of being hand-written, so a new provider
+ * needs only its file and manifest entry, not a third place in this config.
+ */
+const providerInputs = readdirSync(new URL("./src/providers/", import.meta.url))
+  .filter((file) => file.endsWith(".ts") && file !== "index.ts")
+  .map((file) => `./src/providers/${file}`);
+
 export default defineBuildConfig({
-  // One bundle, four inputs: the entries share the chunk that holds the
-  // provider registry. Separate bundles would each carry their own copy, so a
-  // provider registered through the package entrypoint would be invisible to
-  // the MCP server and the AI tools.
   entries: [
     {
       type: "bundle",
-      input: ["./src/index.ts", "./src/cli.ts", "./src/mcp.ts", "./src/ai.ts"],
+      input: ["./src/index.ts", "./src/cli.ts", "./src/mcp.ts", "./src/ai.ts", ...providerInputs],
     },
   ],
   hooks: {

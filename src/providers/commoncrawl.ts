@@ -21,7 +21,6 @@ import type {
 import { Provider } from "../core/provider.ts";
 import { UrlCollector, extractUrls, resolveDomain } from "../core/url.ts";
 import { getTextLines } from "../core/client.ts";
-import { register } from "../core/registry.ts";
 
 /** Number of calendar years covered, newest first. */
 const MAX_YEARS_BACK = 5;
@@ -94,7 +93,7 @@ async function queryIndex(
   }
 }
 
-class CommonCrawl extends Provider {
+export class CommonCrawl extends Provider {
   static readonly key = "commoncrawl";
 
   private readonly baseUrl: string;
@@ -149,7 +148,6 @@ function isYearDone(
   return !cdxApi || collector.done || isAborted(signal);
 }
 
-register(CommonCrawl, "https://index.commoncrawl.org");
 /**
  * Check whether a caller asks to stop.
  *

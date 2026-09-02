@@ -33,8 +33,8 @@ afterEach(() => {
 });
 
 describe("urlscan provider", () => {
-  it("serves discover", () => {
-    expect(create("urlscan").capabilities).toEqual({ discover: true });
+  it("serves discover", async () => {
+    expect((await create("urlscan")).capabilities).toEqual({ discover: true });
   });
 
   it("works without a key and paginates via search_after", async () => {
@@ -54,7 +54,7 @@ describe("urlscan provider", () => {
       );
     vi.stubGlobal("fetch", fetch);
 
-    const urls = await create("urlscan").discover("example.com");
+    const urls = await (await create("urlscan")).discover("example.com");
 
     expect(urls.map((url) => url.url)).toEqual([
       "https://example.com/",
@@ -70,7 +70,7 @@ describe("urlscan provider", () => {
   it("sends the API-Key header when a key is configured", async () => {
     const fetch = stubJSON({ has_more: false, results: [] });
 
-    await create("urlscan", { apiKey: "test-key" }).discover("example.com");
+    await (await create("urlscan", { apiKey: "test-key" })).discover("example.com");
 
     const init = fetch.mock.calls[0]?.[1] as RequestInit;
     expect(new Headers(init?.headers).get("API-Key")).toBe("test-key");
@@ -85,7 +85,7 @@ describe("urlscan provider", () => {
       ],
     });
 
-    const urls = await create("urlscan").discover("example.com");
+    const urls = await (await create("urlscan")).discover("example.com");
 
     expect(urls.map((url) => url.url)).toEqual(["https://example.com/keep"]);
   });
@@ -93,13 +93,15 @@ describe("urlscan provider", () => {
   it("rejects a malformed sort cursor instead of looping", async () => {
     stubJSON({ has_more: true, results: [{ page: { url: "https://example.com/a" }, sort: [] }] });
 
-    await expect(create("urlscan").discover("example.com")).rejects.toBeInstanceOf(UrlsError);
+    await expect((await create("urlscan")).discover("example.com")).rejects.toBeInstanceOf(
+      UrlsError,
+    );
   });
 
   it("stops when has_more arrives without results", async () => {
     stubJSON({ has_more: true, results: [] });
 
-    const urls = await create("urlscan").discover("example.com");
+    const urls = await (await create("urlscan")).discover("example.com");
 
     expect(urls).toEqual([]);
   });
@@ -107,7 +109,7 @@ describe("urlscan provider", () => {
   it("rejects an empty domain without any request", async () => {
     const fetch = stubJSON({});
 
-    await expect(create("urlscan").discover("   ")).rejects.toMatchObject({
+    await expect((await create("urlscan")).discover("   ")).rejects.toMatchObject({
       name: "InvalidInputError",
     });
     expect(fetch).not.toHaveBeenCalled();
@@ -116,6 +118,8 @@ describe("urlscan provider", () => {
   it("maps 429 responses to RateLimitError", async () => {
     stubJSON({ error: "rate limit exceeded" }, 429);
 
-    await expect(create("urlscan").discover("example.com")).rejects.toBeInstanceOf(RateLimitError);
+    await expect((await create("urlscan")).discover("example.com")).rejects.toBeInstanceOf(
+      RateLimitError,
+    );
   });
 });

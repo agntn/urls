@@ -38,13 +38,15 @@ afterEach(() => {
 });
 
 describe("virustotal provider", () => {
-  it("serves discover", () => {
-    expect(create("virustotal", { apiKey: "key" }).capabilities).toEqual({ discover: true });
+  it("serves discover", async () => {
+    expect((await create("virustotal", { apiKey: "key" })).capabilities).toEqual({
+      discover: true,
+    });
   });
 
-  it("requires a key", () => {
-    expect(() => create("virustotal")).toThrow(AuthError);
-    expect(() => create("virustotal")).toThrow(/VIRUSTOTAL_API_KEY/);
+  it("requires a key", async () => {
+    await expect(create("virustotal")).rejects.toThrow(AuthError);
+    await expect(create("virustotal")).rejects.toThrow(/VIRUSTOTAL_API_KEY/);
   });
 
   it("paginates through links.next and tags source and input", async () => {
@@ -64,7 +66,7 @@ describe("virustotal provider", () => {
       );
     vi.stubGlobal("fetch", fetch);
 
-    const urls = await create("virustotal", { apiKey: "key" }).discover("example.com");
+    const urls = await (await create("virustotal", { apiKey: "key" })).discover("example.com");
 
     expect(urls.map((url) => url.url)).toEqual([
       "https://example.com/report",
@@ -81,7 +83,7 @@ describe("virustotal provider", () => {
   it("sends the key in the x-apikey header, not the URL", async () => {
     const fetch = stubJSON({ data: [], links: {} });
 
-    await create("virustotal", { apiKey: "secret-key" }).discover("example.com");
+    await (await create("virustotal", { apiKey: "secret-key" })).discover("example.com");
 
     const call = fetch.mock.calls[0];
     expect(String(call?.[0] as string)).not.toContain("secret-key");
@@ -106,7 +108,7 @@ describe("virustotal provider", () => {
       );
     vi.stubGlobal("fetch", fetch);
 
-    const urls = await create("virustotal", { apiKey: "key" }).discover("example.com");
+    const urls = await (await create("virustotal", { apiKey: "key" })).discover("example.com");
 
     expect(urls.map((url) => url.url)).toEqual(["https://example.com/report"]);
   });
@@ -114,7 +116,9 @@ describe("virustotal provider", () => {
   it("rejects an empty domain without any request", async () => {
     const fetch = stubJSON({});
 
-    await expect(create("virustotal", { apiKey: "key" }).discover("   ")).rejects.toMatchObject({
+    await expect(
+      (await create("virustotal", { apiKey: "key" })).discover("   "),
+    ).rejects.toMatchObject({
       name: "InvalidInputError",
     });
     expect(fetch).not.toHaveBeenCalled();

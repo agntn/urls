@@ -1,5 +1,7 @@
 /** Urls - unified passive URL discovery types */
 
+import type { ProviderConstructor } from "./provider.ts";
+
 /** A URL discovered for an input domain by one passive source. */
 export interface DiscoveredUrl {
   /** Full URL as found, deduplicated within a single discovery call */
@@ -33,6 +35,20 @@ export interface DiscoverOptions {
 export interface ProviderCapabilities {
   /** Enumerate URLs for a domain from this passive source */
   readonly discover: boolean;
+}
+
+/** Static metadata carried by the built-in manifest for one source. */
+export interface ProviderEntry {
+  /** Registry key owned by the concrete class */
+  readonly key: string;
+  /** Public endpoint advertised with the provider */
+  readonly defaultURL?: string;
+  /** Operations the provider serves, known without loading the module */
+  readonly capabilities: ProviderCapabilities;
+  /** True when the provider cannot be constructed without credentials */
+  readonly requiresKey?: boolean;
+  /** Lazily import the concrete class */
+  readonly load: () => Promise<ProviderConstructor>;
 }
 
 /** Configuration accepted when creating a provider instance. */

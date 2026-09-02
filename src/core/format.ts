@@ -70,7 +70,7 @@ export function serializeDiscoverAll(
 export function formatProviders(listings: readonly ProviderListing[]): string {
   const header = `Registered providers (${listings.length}):`;
   const rows = listings.map((listing) => {
-    const capability = listing.requiresConfiguration
+    const capability = listing.requiresKey
       ? "requires API key"
       : listing.capabilities?.discover
         ? "discover"

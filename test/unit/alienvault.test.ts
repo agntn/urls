@@ -31,8 +31,8 @@ afterEach(() => {
 });
 
 describe("alienvault provider", () => {
-  it("serves discover", () => {
-    expect(create("alienvault").capabilities).toEqual({ discover: true });
+  it("serves discover", async () => {
+    expect((await create("alienvault")).capabilities).toEqual({ discover: true });
   });
 
   it("paginates while has_next and tags each URL with source, input, and reference", async () => {
@@ -52,7 +52,7 @@ describe("alienvault provider", () => {
       );
     vi.stubGlobal("fetch", fetch);
 
-    const urls = await create("alienvault").discover("example.com");
+    const urls = await (await create("alienvault")).discover("example.com");
 
     expect(urls).toEqual([
       expect.objectContaining({
@@ -71,7 +71,7 @@ describe("alienvault provider", () => {
   it("applies the host-based scope and drops off-host URLs", async () => {
     stubJSON(PAGE_ONE);
 
-    const urls = await create("alienvault").discover("example.com");
+    const urls = await (await create("alienvault")).discover("example.com");
 
     expect(urls.map((url) => url.url)).toEqual([
       "http://gitlab.example.com/mirror/github.com/openai/skills",
@@ -98,7 +98,7 @@ describe("alienvault provider", () => {
       );
     vi.stubGlobal("fetch", fetch);
 
-    const urls = await create("alienvault").discover("example.com", { match: ["mirror"] });
+    const urls = await (await create("alienvault")).discover("example.com", { match: ["mirror"] });
     expect(urls.map((url) => url.url)).toEqual([
       "http://gitlab.example.com/mirror/github.com/openai/skills",
     ]);
@@ -107,7 +107,7 @@ describe("alienvault provider", () => {
   it("normalizes a full URL input to its host for the request", async () => {
     const fetch = stubJSON({ has_next: false, url_list: [] });
 
-    await create("alienvault").discover("https://user@www.example.com:8080/docs?q=1");
+    await (await create("alienvault")).discover("https://user@www.example.com:8080/docs?q=1");
 
     const requestUrl = String(fetch.mock.calls[0]?.[0] as string);
     expect(requestUrl).toContain("/domain/www.example.com/url_list");
@@ -117,7 +117,7 @@ describe("alienvault provider", () => {
   it("rejects an unparseable domain without sending a request", async () => {
     const fetch = stubJSON({ has_next: false, url_list: [] });
 
-    await expect(create("alienvault").discover("foo bar")).rejects.toMatchObject({
+    await expect((await create("alienvault")).discover("foo bar")).rejects.toMatchObject({
       name: "InvalidInputError",
     });
     expect(fetch).not.toHaveBeenCalled();
@@ -126,7 +126,7 @@ describe("alienvault provider", () => {
   it("rejects an empty domain without any request", async () => {
     const fetch = stubJSON(PAGE_ONE);
 
-    await expect(create("alienvault").discover("   ")).rejects.toMatchObject({
+    await expect((await create("alienvault")).discover("   ")).rejects.toMatchObject({
       name: "InvalidInputError",
     });
     expect(fetch).not.toHaveBeenCalled();
@@ -135,7 +135,7 @@ describe("alienvault provider", () => {
   it("normalizes 429 responses to RateLimitError", async () => {
     stubJSON({ error: "rate limited" }, 429);
 
-    await expect(create("alienvault").discover("example.com")).rejects.toBeInstanceOf(
+    await expect((await create("alienvault")).discover("example.com")).rejects.toBeInstanceOf(
       RateLimitError,
     );
   });

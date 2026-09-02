@@ -5,7 +5,6 @@ import { defineCommand, runMain } from "citty";
 import { version } from "./version.ts";
 
 /** Side-effect import: registers every built-in provider before the CLI parses arguments. */
-import "./providers/index.ts";
 
 const main = defineCommand({
   meta: {

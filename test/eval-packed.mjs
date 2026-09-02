@@ -60,7 +60,11 @@ class Probe extends Provider {
     return [];
   }
 }
-register(Probe);
+register(Probe, {
+  key: "probe",
+  capabilities: { discover: false },
+  load: () => Promise.resolve(Probe),
+});
 
 const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
 const server = createMcpServer();

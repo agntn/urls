@@ -21,9 +21,8 @@ import type {
 import { Provider } from "../core/provider.ts";
 import { buildQuery } from "../core/client.ts";
 import { UrlCollector, extractUrls, resolveDomain } from "../core/url.ts";
-import { register } from "../core/registry.ts";
 
-class Wayback extends Provider {
+export class Wayback extends Provider {
   static readonly key = "wayback";
 
   private readonly baseUrl: string;
@@ -60,5 +59,3 @@ class Wayback extends Provider {
     return collector.results;
   }
 }
-
-register(Wayback, "https://web.archive.org");

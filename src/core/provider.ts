@@ -69,7 +69,6 @@ export interface ProviderConstructor {
   readonly key: string;
   new (config: ProviderConfig): Provider;
 }
-
 /** Operation names accepted by `requireOperation` - one per capability flag. */
 export type ProviderOperation = keyof ProviderCapabilities;
 

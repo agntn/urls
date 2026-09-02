@@ -63,10 +63,10 @@ export interface SelectedProvider {
  * gets the same behavior as one that omits the field.
  *
  * @param preferred Optional explicit provider name.
- * @returns {SelectedProvider} The chosen provider key and a ready-to-use instance.
+ * @returns {Promise<SelectedProvider>} The chosen provider key and a ready-to-use instance.
  */
-export function selectProvider(preferred?: string): SelectedProvider {
+export async function selectProvider(preferred?: string): Promise<SelectedProvider> {
   const preferredName = preferred?.trim() || undefined;
   const name = resolveProvider(preferredName);
-  return { name, provider: create(name) };
+  return { name, provider: await create(name) };
 }

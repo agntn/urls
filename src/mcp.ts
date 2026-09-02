@@ -13,7 +13,6 @@ import { requireOperation } from "./core/provider.ts";
 import { listProviders } from "./core/registry.ts";
 import { isAllProviders, selectProvider } from "./core/resolve.ts";
 import { version } from "./version.ts";
-import "./providers/index.ts";
 
 function result(value: unknown): CallToolResult {
   return {
@@ -63,7 +62,7 @@ export function createMcpServer(): McpServer {
         return result(serializeOutcomes(await discoverAll(domain, options)));
       }
       if (provider?.trim()) {
-        const selected = selectProvider(provider);
+        const selected = await selectProvider(provider);
         const discover = requireOperation(selected.provider, "discover");
         return providerResult(selected.name, await discover(domain, options));
       }

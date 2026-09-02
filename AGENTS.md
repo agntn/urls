@@ -16,7 +16,9 @@ Keep AGENTS.md updated with project status.
 
 - **Runtime**: Node.js 26 dev baseline, >= 24 supported
 - **Language**: TypeScript (strict, `erasableSyntaxOnly`)
-- **Build**: obuild (one bundle, shared provider registry across index/cli/mcp/ai)
+- **Build**: obuild (one bundle; every provider file is a separate lazy input, `dist/providers/*.mjs`)
+- **Registry**: lazy manifest (`builtins` in `src/providers/index.ts`); `create()` is async,
+  single-flight, retries a rejected load; `sideEffects: false`; subpath `./providers/*`
 - **Test**: vitest + `test/eval-*.mjs` subprocess gates
 - **Lint**: oxlint + oxfmt through `@agntn/ox`, `prefer-readonly-parameter-types` allow list
   extended repo-locally (see `oxlint.config.ts`)
@@ -50,8 +52,10 @@ test/eval-cli.mjs etc.     - packaged/CLI/MCP subprocess gates
 ## Conventions
 
 - ESM only; published files are `.mjs` / `.d.mts`.
-- Sources self-register via `register(Class, defaultUrl)`; `src/index.ts`, `cli.ts`, `mcp.ts`,
-  and `ai.ts` all import `./providers/index.ts` so one bundle keeps one registry.
+- Lazy manifest: `src/providers/index.ts` exports only metadata + loaders; modules load on the
+  first `create()` for a key. `register(Class, meta)` is for elements outside the package. New
+  providers need their file, `export`ed class, and a manifest entry - the build input list is
+  derived from the directory, not written by hand.
 - All interface fields are `readonly`; function params keep named library types (the repo-local
   allow list covers the internal ones).
 - Streams: CDX-style dumps go through `getTextLines` (plain fetch, status classified before body

@@ -45,12 +45,20 @@ pnpm add -g @agntn/urls
 ```ts
 import { create } from "@agntn/urls";
 
-const wayback = create("wayback"); // keyless
+const wayback = await create("wayback"); // keyless
 const urls = await wayback.discover("example.com", { limit: 10 });
 
 for (const hit of urls) {
   console.log(`${hit.source}: ${hit.url}`);
 }
+```
+
+Provider modules are lazy: `create()` imports the source only on first use, listing the registry
+never loads a module, and the package declares `sideEffects: false`. Each source is also
+reachable directly through its subpath:
+
+```ts
+import { Wayback } from "@agntn/urls/providers/wayback";
 ```
 
 Every result is a `DiscoveredUrl`:
@@ -140,7 +148,9 @@ import {
   whose failure is about access (missing key, billing, rate limit) to the next one that works.
 - `discoverAll(domain, options)` - fans out to every registered source in parallel and returns
   per-source outcomes, errors included, for side-by-side comparison.
-- `register(ProviderClass, defaultUrl)` - add your own passive source; it joins the fan-out and
+- `create(name, config)` - async; imports the provider module on first use and reuses the loaded
+  class afterwards (single-flight, so parallel cold calls share one import).
+- `register(ProviderClass, meta)` - add your own passive source; it joins the fan-out and
   auto-selection like a built-in.
 - `UrlCollector` - the shared scope/filter/dedupe engine every source pages through, exported so
   a custom collector can reuse the same rules.

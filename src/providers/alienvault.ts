@@ -16,7 +16,6 @@ import type {
 import { Provider } from "../core/provider.ts";
 import { buildQuery } from "../core/client.ts";
 import { UrlCollector, extractUrls, resolveDomain } from "../core/url.ts";
-import { register } from "../core/registry.ts";
 
 /** Bounded pagination safeguard for a backend that can say `has_next` forever. */
 const MAX_PAGES = 20;
@@ -26,7 +25,7 @@ interface AlienVaultPage {
   readonly has_next?: boolean;
 }
 
-class AlienVault extends Provider {
+export class AlienVault extends Provider {
   static readonly key = "alienvault";
 
   private readonly baseUrl: string;
@@ -58,5 +57,3 @@ class AlienVault extends Provider {
     return collector.results;
   }
 }
-
-register(AlienVault, "https://otx.alienvault.com");

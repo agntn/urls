@@ -19,7 +19,6 @@ import type {
 import { Provider } from "../core/provider.ts";
 import { UrlCollector, extractUrls, resolveDomain } from "../core/url.ts";
 import { AuthError } from "../core/errors.ts";
-import { register } from "../core/registry.ts";
 
 /** Bounded pagination safeguard for a backend cursor that could run long. */
 const MAX_PAGES = 50;
@@ -59,7 +58,7 @@ function collectPage(
   return data?.links?.next;
 }
 
-class VirusTotal extends Provider {
+export class VirusTotal extends Provider {
   static readonly key = "virustotal";
 
   private readonly baseUrl: string;
@@ -96,5 +95,3 @@ class VirusTotal extends Provider {
     return collector.results;
   }
 }
-
-register(VirusTotal, "https://www.virustotal.com/api/v3");

@@ -41,7 +41,7 @@ async function runAll<T>(run: (provider: Provider) => Promise<T>): Promise<Provi
   return Promise.all(
     providers().map(async (name): Promise<ProviderOutcome<T>> => {
       try {
-        return { provider: name, result: await run(create(name)) };
+        return { provider: name, result: await run(await create(name)) };
       } catch (error) {
         return { provider: name, error: normalizeError(error, name) };
       }
@@ -111,7 +111,8 @@ async function runWithFallback<T>(
   let firstSkipped: UrlsError | undefined;
   for (const name of candidates) {
     try {
-      return { provider: name, result: await run(create(name)) };
+      const provider = await create(name);
+      return { provider: name, result: await run(provider) };
     } catch (error) {
       const normalized = normalizeError(error, name);
       if (!isSkippable(normalized)) throw normalized;

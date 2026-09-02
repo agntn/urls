@@ -1,12 +1,10 @@
-/** Side-effect import: registers every built-in provider. */
-import "./providers/index.ts";
-
 export { version } from "./version.ts";
 export type {
   DiscoveredUrl,
   DiscoverOptions,
   ProviderCapabilities,
   ProviderConfig,
+  ProviderEntry,
 } from "./core/types.ts";
 export { clampMaxResults } from "./core/types.ts";
 export { extractUrls, inScope, normalizeHost, resolveDomain, UrlCollector } from "./core/url.ts";

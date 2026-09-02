@@ -198,7 +198,7 @@ export default function urlsExtension(pi: ExtensionAPI): void {
         return textResult(lib.formatDiscoverAll(params.domain, outcomes));
       }
       if (params.provider?.trim()) {
-        const selected = lib.selectProvider(params.provider);
+        const selected = await lib.selectProvider(params.provider);
         const discover = lib.requireOperation(selected.provider, "discover");
         return textResult(formatUrlList(await discover(params.domain, options)));
       }

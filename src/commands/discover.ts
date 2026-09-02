@@ -138,7 +138,7 @@ export default defineCommand({
 
       let urls: DiscoveredUrl[];
       if (args.provider?.trim()) {
-        const selected = selectProvider(args.provider);
+        const selected = await selectProvider(args.provider);
         urls = await requireOperation(selected.provider, "discover")(domain, options);
       } else {
         urls = (await discoverWithFallback(domain, options)).result;

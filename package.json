@@ -31,9 +31,7 @@
     "packages/pi/extensions"
   ],
   "type": "module",
-  "sideEffects": [
-    "./dist/_chunks/providers.mjs"
-  ],
+  "sideEffects": false,
   "main": "./dist/index.mjs",
   "types": "./dist/index.d.mts",
   "exports": {
@@ -48,6 +46,10 @@
     "./mcp": {
       "types": "./dist/mcp.d.mts",
       "import": "./dist/mcp.mjs"
+    },
+    "./providers/*": {
+      "types": "./dist/providers/*.d.mts",
+      "import": "./dist/providers/*.mjs"
     }
   },
   "publishConfig": {

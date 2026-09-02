@@ -17,14 +17,14 @@ afterEach(() => {
 });
 
 describe("wayback provider", () => {
-  it("serves discover", () => {
-    expect(create("wayback").capabilities).toEqual({ discover: true });
+  it("serves discover", async () => {
+    expect((await create("wayback")).capabilities).toEqual({ discover: true });
   });
 
   it("extracts one URL per line and tags source and input", async () => {
     const fetch = stubText(CDX_BODY);
 
-    const urls = await create("wayback").discover("example.com");
+    const urls = await (await create("wayback")).discover("example.com");
 
     expect(urls.map((url) => url.url)).toEqual([
       "http://example.com:80/",
@@ -42,7 +42,7 @@ describe("wayback provider", () => {
   it("deduplicates exact URLs across lines", async () => {
     stubText("https://example.com/a\nhttps://example.com/a\nhttps://example.com/b\n");
 
-    const urls = await create("wayback").discover("example.com");
+    const urls = await (await create("wayback")).discover("example.com");
 
     expect(urls.map((url) => url.url)).toEqual(["https://example.com/a", "https://example.com/b"]);
   });
@@ -50,7 +50,7 @@ describe("wayback provider", () => {
   it("drops off-scope lines silently", async () => {
     stubText("https://cdn.other.test/lib.js\nhttps://example.com/keep\n");
 
-    const urls = await create("wayback").discover("example.com");
+    const urls = await (await create("wayback")).discover("example.com");
 
     expect(urls.map((url) => url.url)).toEqual(["https://example.com/keep"]);
   });
@@ -58,7 +58,7 @@ describe("wayback provider", () => {
   it("caps results at the requested limit", async () => {
     stubText(CDX_BODY);
 
-    const urls = await create("wayback").discover("example.com", { limit: 2 });
+    const urls = await (await create("wayback")).discover("example.com", { limit: 2 });
 
     expect(urls).toHaveLength(2);
   });
@@ -66,7 +66,7 @@ describe("wayback provider", () => {
   it("rejects an empty domain without any request", async () => {
     const fetch = stubText("");
 
-    await expect(create("wayback").discover("   ")).rejects.toMatchObject({
+    await expect((await create("wayback")).discover("   ")).rejects.toMatchObject({
       name: "InvalidInputError",
     });
     expect(fetch).not.toHaveBeenCalled();
