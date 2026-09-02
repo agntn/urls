@@ -1,0 +1,161 @@
+/**
+ * Common Crawl provider - the index CDX API
+ *
+ * No API key. Resolves the newest index per calendar year for the last five years and queries
+ * each CDX endpoint for `*.domain`. One failing index (the frontend returns intermittent
+ * 502/504s) is skipped while the others still run.
+ *
+ * Verified 2026-09-02: `index.commoncrawl.org` unreachable (connection refused) from the
+ * development network, so live checks are skipped there; the provider keeps its contract and is
+ * exercised through mocked HTTP in unit tests.
+ *
+ * API: https://index.commoncrawl.org/collinfo.json (+ per-index CDX)
+ */
+
+import type {
+  DiscoverOptions,
+  DiscoveredUrl,
+  ProviderCapabilities,
+  ProviderConfig,
+} from "../core/types.ts";
+import { Provider } from "../core/provider.ts";
+import { UrlCollector, assertDomain, extractUrls } from "../core/url.ts";
+import { getTextLines } from "../core/client.ts";
+import { register } from "../core/registry.ts";
+
+/** Number of calendar years covered, newest first. */
+const MAX_YEARS_BACK = 5;
+
+interface CommonCrawlIndex {
+  readonly id?: string;
+  readonly "cdx-api"?: string;
+}
+
+/**
+ * Calendar years covered, newest first.
+ *
+ * @returns {string[]} The last five years as strings.
+ */
+function recentYears(): string[] {
+  const year = new Date().getFullYear();
+  return Array.from({ length: MAX_YEARS_BACK }, (_, i) => String(year - i));
+}
+
+/**
+ * One CDX endpoint per year, first index whose id names the year; deterministic order.
+ *
+ * @param indexes Indexes from `collinfo.json`.
+ * @param years Calendar years to cover.
+ * @returns {Map<string, string>} Map of year to CDX API URL.
+ */
+function mapIndexesPerYear(
+  indexes: readonly CommonCrawlIndex[],
+  years: readonly string[],
+): Map<string, string> {
+  const byYear = new Map<string, string>();
+  for (const candidate of years) {
+    for (const index of indexes) {
+      const api = index["cdx-api"];
+      if (api && index.id?.includes(candidate) && !byYear.has(candidate)) {
+        byYear.set(candidate, api);
+        break;
+      }
+    }
+  }
+  return byYear;
+}
+
+/**
+ * Query one CDX index for `*.domain` and feed the discovered URLs to the collector.
+ *
+ * @param cdxApi CDX endpoint of one index.
+ * @param domain Target domain.
+ * @param collector Shared per-call URL collector.
+ * @param source Registry key reporting the URLs.
+ */
+async function queryIndex(
+  cdxApi: string,
+  domain: string,
+  collector: UrlCollector,
+  source: string,
+): Promise<void> {
+  const apiURL = new URL(cdxApi);
+  apiURL.searchParams.set("url", `*.${domain}`);
+  apiURL.searchParams.set("output", "text");
+  apiURL.searchParams.set("fl", "url");
+
+  const text = getTextLines(apiURL.toString(), { provider: source });
+  for await (const line of text) {
+    if (collector.done) break;
+    if (!line.trim()) continue;
+    for (const extracted of extractUrls(line)) {
+      collector.push(source, extracted, apiURL.toString());
+    }
+  }
+}
+
+class CommonCrawl extends Provider {
+  static readonly key = "commoncrawl";
+
+  private readonly baseUrl: string;
+
+  constructor(config: ProviderConfig) {
+    super(config);
+    this.baseUrl = config.baseUrl ?? "https://index.commoncrawl.org";
+  }
+
+  get capabilities(): ProviderCapabilities {
+    return { discover: true };
+  }
+
+  async discover(domain: string, options?: DiscoverOptions): Promise<DiscoveredUrl[]> {
+    assertDomain(domain, "commoncrawl");
+    const collector = new UrlCollector(options, domain);
+
+    const indexes = await this.getJSON<CommonCrawlIndex[]>(`${this.baseUrl}/collinfo.json`);
+    const years = recentYears();
+    const byYear = mapIndexesPerYear(indexes ?? [], years);
+
+    for (const candidate of years) {
+      const cdxApi = byYear.get(candidate);
+      if (isYearDone(cdxApi, collector, options?.signal)) break;
+      try {
+        await queryIndex(cdxApi, domain, collector, this.name);
+      } catch (error) {
+        // One bad index should not discard the others; an aborted caller still re-raises.
+        if (isAborted(options?.signal)) throw error;
+      }
+    }
+
+    return collector.results;
+  }
+}
+
+/**
+ * Check whether the caller asks to stop or the year has no endpoint.
+ *
+ * A type predicate lets the caller narrow `cdxApi` to a real endpoint after the guard.
+ *
+ * @param cdxApi CDX endpoint of the year, when mapped.
+ * @param collector Shared per-call URL collector.
+ * @param signal Abort signal, when provided.
+ * @returns {boolean} True when the loop should stop before this year.
+ */
+function isYearDone(
+  cdxApi: string | undefined,
+  collector: UrlCollector,
+  signal: AbortSignal | undefined,
+): cdxApi is undefined {
+  return !cdxApi || collector.done || isAborted(signal);
+}
+
+register(CommonCrawl, "https://index.commoncrawl.org");
+/**
+ * Check whether a caller asks to stop.
+ *
+ * @param signal Abort signal, when provided.
+ * @returns {boolean} True when the signal is aborted.
+ */
+function isAborted(signal: AbortSignal | undefined): boolean {
+  return signal?.aborted === true;
+}

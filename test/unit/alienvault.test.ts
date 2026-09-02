@@ -1,0 +1,123 @@
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { RateLimitError } from "../../src/core/errors.ts";
+import { create } from "../../src/core/registry.ts";
+import { stubJSON } from "../helpers.ts";
+import "../../src/providers/alienvault.ts";
+
+/** Live OTX sample captured 2026-09-02 for page 1 of example.com. */
+const PAGE_ONE = {
+  has_next: true,
+  page_num: 1,
+  actual_size: 22470,
+  url_list: [
+    {
+      url: "http://gitlab.example.com/mirror/github.com/openai/skills",
+      date: "2026-09-02T10:38:26",
+      domain: "example.com",
+      hostname: "gitlab.example.com",
+    },
+    {
+      url: "https://offsite.example.test/collect",
+      date: "2026-09-01T09:00:00",
+      domain: "example.com",
+    },
+  ],
+};
+
+const PAGE_TWO = { has_next: false, page_num: 2, url_list: [{ url: "https://example.com/a" }] };
+
+afterEach(() => {
+  vi.unstubAllGlobals();
+});
+
+describe("alienvault provider", () => {
+  it("serves discover", () => {
+    expect(create("alienvault").capabilities).toEqual({ discover: true });
+  });
+
+  it("paginates while has_next and tags each URL with source, input, and reference", async () => {
+    const fetch = vi
+      .fn()
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify(PAGE_ONE), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        }),
+      )
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify(PAGE_TWO), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        }),
+      );
+    vi.stubGlobal("fetch", fetch);
+
+    const urls = await create("alienvault").discover("example.com");
+
+    expect(urls).toEqual([
+      expect.objectContaining({
+        url: "http://gitlab.example.com/mirror/github.com/openai/skills",
+        source: "alienvault",
+        input: "example.com",
+      }),
+      expect.objectContaining({ url: "https://example.com/a" }),
+    ]);
+    expect(fetch.mock.calls).toHaveLength(2);
+    expect(String(fetch.mock.calls[0]?.[0])).toContain("/url_list?page=1");
+    expect(String(fetch.mock.calls[1]?.[0])).toContain("/url_list?page=2");
+    expect(urls[0]?.reference).toContain("page=1");
+  });
+
+  it("applies the host-based scope and drops off-host URLs", async () => {
+    stubJSON(PAGE_ONE);
+
+    const urls = await create("alienvault").discover("example.com");
+
+    expect(urls.map((url) => url.url)).toEqual([
+      "http://gitlab.example.com/mirror/github.com/openai/skills",
+    ]);
+    expect(urls).not.toContainEqual(
+      expect.objectContaining({ url: "https://offsite.example.test/collect" }),
+    );
+  });
+
+  it("respects the match filter", async () => {
+    const fetch = vi
+      .fn()
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify(PAGE_ONE), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        }),
+      )
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify(PAGE_TWO), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        }),
+      );
+    vi.stubGlobal("fetch", fetch);
+
+    const urls = await create("alienvault").discover("example.com", { match: ["mirror"] });
+    expect(urls.map((url) => url.url)).toEqual([
+      "http://gitlab.example.com/mirror/github.com/openai/skills",
+    ]);
+  });
+
+  it("rejects an empty domain without any request", async () => {
+    const fetch = stubJSON(PAGE_ONE);
+
+    await expect(create("alienvault").discover("   ")).rejects.toMatchObject({
+      name: "InvalidInputError",
+    });
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it("normalizes 429 responses to RateLimitError", async () => {
+    stubJSON({ error: "rate limited" }, 429);
+
+    await expect(create("alienvault").discover("example.com")).rejects.toBeInstanceOf(
+      RateLimitError,
+    );
+  });
+});

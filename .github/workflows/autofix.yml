@@ -1,0 +1,27 @@
+name: Autofix
+
+on:
+  pull_request:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  autofix:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 26
+          cache: pnpm
+
+      - run: pnpm i --frozen-lockfile
+
+      - uses: autofix-ci/action@v1
+        with:
+          command: pnpm lint:fix
