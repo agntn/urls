@@ -116,8 +116,10 @@ urls providers
 
 ### Discovery options
 
-- `limit` - stop collecting after this many URLs survive the filters. Sources stop paging or
-  streaming the moment the bound is reached, so large CDX dumps are not downloaded in full.
+- `limit` - stop collecting after this many URLs survive the filters. The published cap is
+  100000 (`MAX_DISCOVER_RESULTS`): the CLI rejects a larger value, the library clamps, and
+  MCP/AI schemas share the same constant. Sources stop paging or streaming the moment the
+  bound is reached, so large CDX dumps are not downloaded in full.
 - `match` / `filter` - comma-separated case-insensitive substrings. `match` keeps a URL when it
   contains any of the patterns; `filter` drops a URL when it contains any.
 - `noScope` - disables the default host-based scope. Scoped discovery keeps only URLs whose host

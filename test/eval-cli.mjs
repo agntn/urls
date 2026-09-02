@@ -73,6 +73,13 @@ check(
   badLimit.stderr,
 );
 
+const hugeLimit = run(["discover", "example.com", "-n", "100001"]);
+check(
+  "discover rejects a limit above MAX_DISCOVER_RESULTS",
+  hugeLimit.status === 1 && hugeLimit.stderr.includes("Invalid limit: 100001"),
+  hugeLimit.stderr,
+);
+
 for (const sub of ["discover", "providers"]) {
   const help = run([sub, "--help"]);
   check(`${sub} --help exits 0`, help.status === 0, help.stderr);

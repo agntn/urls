@@ -1,6 +1,7 @@
 /** Zod fragments shared by the MCP server and the AI SDK tools. */
 
 import { z } from "zod";
+import { MAX_DISCOVER_RESULTS } from "./types.ts";
 
 /** Optional provider selector; empty-like strings are rejected before selection. */
 export const providerInput = {
@@ -24,7 +25,7 @@ export const limitInput = z
   .number()
   .int()
   .positive()
-  .max(100000)
+  .max(MAX_DISCOVER_RESULTS)
   .optional()
   .describe("Maximum number of URLs to return; sources stop when the bound is reached");
 

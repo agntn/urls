@@ -1,5 +1,6 @@
 /** URL extraction, host normalization, scope, and the shared discovery collector */
 
+import { clampMaxResults, MAX_DISCOVER_RESULTS } from "./types.ts";
 import type { DiscoverOptions, DiscoveredUrl } from "./types.ts";
 import { InvalidInputError } from "./errors.ts";
 
@@ -51,7 +52,8 @@ export function extractUrls(text: string): string[] {
  *
  * `https://User@www.example.com:8080/path` becomes `www.example.com`; `example.com` stays
  * `example.com`; `www.example.com/path` becomes `www.example.com`. Input that cannot be
- * parsed as a hostname or URL resolves to an empty string.
+ * parsed as a hostname or URL resolves to an empty string. Schemeless userinfo
+ * (`example.com@evil.com`) is rejected so WHATWG does not silently take the host after `@`.
  *
  * @param input Bare domain or full URL.
  * @returns {string} The lowercase hostname, or empty when the input is not a host.
@@ -59,6 +61,7 @@ export function extractUrls(text: string): string[] {
 export function normalizeHost(input: string): string {
   const trimmed = input.trim();
   if (!trimmed) return "";
+  if (!trimmed.includes("://") && trimmed.includes("@")) return "";
   if (/^[a-z0-9][a-z0-9-.]*$/i.test(trimmed) && !trimmed.includes("://")) {
     return trimmed.toLowerCase();
   }
@@ -98,6 +101,8 @@ export function resolveDomain(domain: string, provider: string): string {
  * WHATWG accepts `.` and `..` as hosts; those collapse `/domain/../` on AlienVault and
  * VirusTotal into a different API path. Empty labels (`foo..bar.com`) are not DNS hosts.
  * A trailing FQDN dot is stripped so `example.com.` and `example.com` hit the same endpoint.
+ * Single-label names other than `localhost` (a TLD like `com`) are rejected so a request
+ * cannot fan out to every host under that suffix.
  *
  * @param host Hostname from `normalizeHost`.
  * @returns {string} A host safe to interpolate, or empty when it is not usable.
@@ -107,6 +112,7 @@ function canonicalHost(host: string): string {
   if (host.startsWith("[") && host.endsWith("]")) return host.length > 2 ? host : "";
   const trimmed = host.replace(/\.+$/u, "");
   if (!trimmed || trimmed.split(".").some((label) => label.length === 0)) return "";
+  if (!trimmed.includes(".") && trimmed !== "localhost") return "";
   return trimmed;
 }
 
@@ -126,7 +132,9 @@ export function assertDomain(domain: string, provider: string): void {
 
 /**
  * Default host-based scope: `www.example.com` belongs to input `example.com`, and
- * `example.com` belongs to itself; `example.com.evil.test` does not.
+ * `example.com` belongs to itself; `example.com.evil.test` does not. A single-label
+ * scope other than `localhost` matches only that exact host, so `com` does not keep
+ * every `*.com` URL.
  *
  * @param url URL to test.
  * @param inputDomain Input domain.
@@ -137,7 +145,9 @@ export function inScope(url: string, inputDomain: string): boolean {
   if (!host || !inputDomain) return false;
   const domain = normalizeHost(inputDomain);
   if (!domain) return false;
-  return host === domain || host.endsWith(`.${domain}`);
+  if (host === domain) return true;
+  if (!domain.includes(".") && domain !== "localhost") return false;
+  return host.endsWith(`.${domain}`);
 }
 
 /**
@@ -160,7 +170,10 @@ export class UrlCollector {
     this.match = options?.match?.map((value) => value.toLowerCase());
     this.filter = options?.filter?.map((value) => value.toLowerCase());
     this.noScope = options?.noScope ?? false;
-    this.limit = options?.limit;
+    this.limit =
+      options?.limit === undefined
+        ? undefined
+        : clampMaxResults(options.limit, MAX_DISCOVER_RESULTS);
     this.input = input;
   }
 

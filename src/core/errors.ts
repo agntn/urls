@@ -334,10 +334,3 @@ function parseRetryAfter(lowerMessage: string): number | undefined {
   const match = lowerMessage.match(/retry\s*after\s*[:=]?\s*(\d+)/i);
   return match?.[1] ? Number(match[1]) : undefined;
 }
-
-/**
- * Redact API keys from a URL for safe error output.
- *
- * @param url URL or URL-bearing text.
- * @returns Text with secret query params replaced by REDACTED.
- */

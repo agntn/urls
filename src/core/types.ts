@@ -19,6 +19,7 @@ export interface DiscoverOptions {
   /**
    * Stop collecting after this many URLs survive scope, match, and filter rules.
    * When absent, sources run to completion (bounded per-source page safeguards).
+   * Values outside `[1, MAX_DISCOVER_RESULTS]` are clamped by `UrlCollector`.
    */
   readonly limit?: number;
   /** Keep only URLs containing at least one of these substrings (case-insensitive) */
@@ -60,6 +61,9 @@ export interface ProviderConfig {
   /** Request timeout in milliseconds */
   readonly timeout?: number;
 }
+
+/** Published discovery bound shared by the collector, CLI, and MCP/AI schemas. */
+export const MAX_DISCOVER_RESULTS = 100_000;
 
 /**
  * Clamp a caller-provided limit to `[1, max]`; absent limits become `max`.

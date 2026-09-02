@@ -1,17 +1,16 @@
 /** Discover URLs for a domain across passive sources */
 import { defineCommand } from "citty";
 import consola from "consola";
-import { discoverAll, discoverWithFallback } from "../core/all.ts";
 import { formatDiscoverAll, formatUrlLine } from "../core/format.ts";
-import { requireOperation } from "../core/provider.ts";
-import { isAllProviders, selectProvider } from "../core/resolve.ts";
-import type { DiscoveredUrl, DiscoverOptions } from "../core/types.ts";
+import { MAX_DISCOVER_RESULTS } from "../core/types.ts";
+import type { DiscoveredUrl } from "../core/types.ts";
+import { runDiscover } from "../tool-operations.ts";
 
 function parseLimit(value: string | undefined): number | undefined {
   if (value === undefined) return undefined;
   const limit = Number.parseInt(value, 10);
-  if (Number.isNaN(limit) || limit < 1) {
-    consola.error(`Invalid limit: ${value}`);
+  if (Number.isNaN(limit) || limit < 1 || limit > MAX_DISCOVER_RESULTS) {
+    consola.error(`Invalid limit: ${value} (expected 1..${MAX_DISCOVER_RESULTS})`);
     process.exit(1);
   }
   return limit;
@@ -56,29 +55,6 @@ async function printResults(
   }
 }
 
-/**
- * Fan out to every source and print the comparison.
- *
- * @param jsonl Emit JSONL instead of plain lines.
- * @param domain Target domain.
- * @param options Discovery options.
- */
-async function runAllSources(
-  jsonl: boolean,
-  domain: string,
-  options: DiscoverOptions,
-): Promise<void> {
-  const outcomes = await discoverAll(domain, options);
-  if (!jsonl) {
-    consola.log(formatDiscoverAll(domain, outcomes));
-    return;
-  }
-  for (const outcome of outcomes) {
-    if (outcome.error) continue;
-    printJsonl(domain, outcome.result);
-  }
-}
-
 export default defineCommand({
   meta: {
     name: "discover",
@@ -98,7 +74,7 @@ export default defineCommand({
     limit: {
       type: "string",
       alias: "n",
-      description: "Maximum number of URLs",
+      description: `Maximum number of URLs (1..${MAX_DISCOVER_RESULTS})`,
     },
     match: {
       type: "string",
@@ -131,19 +107,19 @@ export default defineCommand({
     const jsonl = args.jsonl ?? false;
     const domain = args.domain;
     try {
-      if (isAllProviders(args.provider)) {
-        await runAllSources(jsonl, domain, options);
+      const outcome = await runDiscover(domain, options, args.provider);
+      if (outcome.mode === "comparison") {
+        if (!jsonl) {
+          consola.log(formatDiscoverAll(domain, outcome.outcomes));
+          return;
+        }
+        for (const entry of outcome.outcomes) {
+          if (entry.error) continue;
+          printJsonl(domain, entry.result);
+        }
         return;
       }
-
-      let urls: DiscoveredUrl[];
-      if (args.provider?.trim()) {
-        const selected = await selectProvider(args.provider);
-        urls = await requireOperation(selected.provider, "discover")(domain, options);
-      } else {
-        urls = (await discoverWithFallback(domain, options)).result;
-      }
-      await printResults(domain, urls, jsonl);
+      await printResults(domain, outcome.urls, jsonl);
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       consola.error(`Error: ${message}`);

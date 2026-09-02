@@ -8,7 +8,7 @@ Keep AGENTS.md updated with project status.
   passive URL discovery over five sources (alienvault, commoncrawl, urlscan, virustotal, wayback)
   with CLI, Pi/OMP extensions, MCP server, and AI SDK tools.
 - Full gate green: lint (shared `@agntn/ox` + repo-local allow-list extension), typecheck
-  (tsc + extensions), 89 unit tests, and the three eval gates (CLI, MCP, packed) in offline and
+  (tsc + extensions), unit tests, and the three eval gates (CLI, MCP, packed) in offline and
   live mode.
 - Global CLI (`urls`) installed and smoke-tested.
 
@@ -40,7 +40,8 @@ Keep AGENTS.md updated with project status.
 
 ```
 src/core/                  - types, errors, client, registry, resolve, all, url helpers
-src/providers/             - one self-registering file per passive source
+src/providers/             - one file per passive source; lazy-loaded from the builtins manifest
+src/tool-operations.ts     - shared discovery executor (explicit / all / fallback)
 src/commands/              - discover, providers, mcp
 src/ai.ts, src/mcp.ts      - AI SDK and MCP surfaces over the same executors
 packages/pi/extensions/    - Pi extension source shipped with the package
@@ -62,7 +63,12 @@ test/eval-cli.mjs etc.     - packaged/CLI/MCP subprocess gates
   read, early break cancels the reader, 60s default timeout). `ofetch` cannot stream without
   consuming.
 - Domain input: every source request is built from `resolveDomain()`, the derived hostname of a
-  bare domain or full URL; unparseable input is rejected before I/O.
+  bare domain or full URL; unparseable input, path-traversing hosts (`.`, `..`, empty labels),
+  single-label public suffixes (except `localhost`), and schemeless userinfo are rejected before
+  I/O. `inScope` matches a TLD only as an exact host, not as `*.tld`.
+- Limit: `MAX_DISCOVER_RESULTS` (100000) is the published bound. `UrlCollector` clamps provided
+  limits; CLI rejects out of range; MCP/AI schemas use the same constant. Absent limit stays
+  unbounded aside from per-source page safeguards.
 
 ## API audit (2026-09-02)
 

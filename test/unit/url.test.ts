@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { clampMaxResults, MAX_DISCOVER_RESULTS } from "../../src/core/types.ts";
 import {
   UrlCollector,
   extractUrls,
@@ -61,6 +62,11 @@ describe("normalizeHost", () => {
   it("strips path and userinfo while normalizing", () => {
     expect(normalizeHost("HTTPS://User@www.example.com:8080/a?q=1")).toBe("www.example.com");
   });
+
+  it("rejects schemeless userinfo so the host after @ is not taken silently", () => {
+    expect(normalizeHost("example.com@evil.com")).toBe("");
+    expect(normalizeHost("user:pass@example.com")).toBe("");
+  });
 });
 
 describe("resolveDomain", () => {
@@ -85,6 +91,13 @@ describe("resolveDomain", () => {
   it("strips a trailing FQDN dot so the path stays on the domain endpoint", () => {
     expect(resolveDomain("example.com.", "alienvault")).toBe("example.com");
   });
+
+  it("rejects a public suffix and schemeless userinfo, keeps localhost", () => {
+    expect(() => resolveDomain("com", "alienvault")).toThrow(/invalid domain/);
+    expect(() => resolveDomain("example.com@evil.com", "alienvault")).toThrow(/invalid domain/);
+    expect(resolveDomain("localhost", "alienvault")).toBe("localhost");
+    expect(resolveDomain("127.0.0.1", "alienvault")).toBe("127.0.0.1");
+  });
 });
 
 describe("inScope", () => {
@@ -98,6 +111,22 @@ describe("inScope", () => {
     expect(inScope("https://other.com/x", "example.com")).toBe(false);
     expect(inScope("https://example.com.evil.test/x", "example.com")).toBe(false);
     expect(inScope("https://notexample.com/x", "example.com")).toBe(false);
+  });
+
+  it("does not treat a TLD as a parent of every host under it", () => {
+    expect(inScope("https://example.com/x", "com")).toBe(false);
+    expect(inScope("https://com/x", "com")).toBe(true);
+  });
+});
+
+describe("clampMaxResults", () => {
+  it("caps at max, floors at 1, and substitutes max for absent or non-finite", () => {
+    expect(clampMaxResults(MAX_DISCOVER_RESULTS + 1, MAX_DISCOVER_RESULTS)).toBe(
+      MAX_DISCOVER_RESULTS,
+    );
+    expect(clampMaxResults(0, MAX_DISCOVER_RESULTS)).toBe(1);
+    expect(clampMaxResults(undefined, MAX_DISCOVER_RESULTS)).toBe(MAX_DISCOVER_RESULTS);
+    expect(clampMaxResults(Number.NaN, MAX_DISCOVER_RESULTS)).toBe(MAX_DISCOVER_RESULTS);
   });
 });
 
@@ -141,6 +170,14 @@ describe("UrlCollector", () => {
     expect(collector.done).toBe(true);
     expect(collector.push("wayback", "https://example.com/c")).toBe(false);
     expect(collector.count).toBe(2);
+  });
+
+  it("truncates a fractional limit so done is reached after the integer bound", () => {
+    const collector = new UrlCollector({ limit: 1.9 }, "example.com");
+
+    expect(collector.push("wayback", "https://example.com/a")).toBe(true);
+    expect(collector.done).toBe(true);
+    expect(collector.push("wayback", "https://example.com/b")).toBe(false);
   });
 
   it("deduplicates across pushes", () => {
