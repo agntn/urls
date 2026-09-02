@@ -13,6 +13,8 @@ import {
   matchInput,
   noScopeInput,
   providerInput,
+  urlOutScopeInput,
+  urlScopeInput,
 } from "./core/schemas.ts";
 import { runDiscover } from "./tool-operations.ts";
 
@@ -22,6 +24,8 @@ const discoverInputSchema = z.object({
   match: matchInput,
   filter: filterInput,
   noScope: noScopeInput,
+  urlScope: urlScopeInput,
+  urlOutScope: urlOutScopeInput,
   ...providerInput,
 });
 
@@ -33,8 +37,8 @@ export const discoverTool: Tool<z.infer<typeof discoverInputSchema>, DiscoverToo
   description:
     "Enumerate URLs known for a domain from passive sources. Pass provider 'all' to compare every source.",
   inputSchema: discoverInputSchema,
-  execute: async ({ domain, limit, match, filter, noScope, provider }) => {
-    const options = { limit, match, filter, noScope };
+  execute: async ({ domain, limit, match, filter, noScope, urlScope, urlOutScope, provider }) => {
+    const options = { limit, match, filter, noScope, urlScope, urlOutScope };
     const outcome = await runDiscover(domain, options, provider);
     if (outcome.mode === "comparison") {
       return { comparison: serializeOutcomes(outcome.outcomes) };

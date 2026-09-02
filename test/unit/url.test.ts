@@ -6,6 +6,7 @@ import {
   inScope,
   normalizeHost,
   resolveDomain,
+  urlMatchesScope,
 } from "../../src/core/url.ts";
 
 describe("extractUrls", () => {
@@ -119,6 +120,21 @@ describe("inScope", () => {
   });
 });
 
+describe("urlMatchesScope", () => {
+  it("treats a pattern without a star as a URL prefix with a path boundary", () => {
+    expect(urlMatchesScope("https://example.com/api", "https://example.com/api")).toBe(true);
+    expect(urlMatchesScope("https://example.com/api/v1", "https://example.com/api")).toBe(true);
+    expect(urlMatchesScope("https://example.com/api?x=1", "https://example.com/api")).toBe(true);
+    expect(urlMatchesScope("https://example.com/apiv2", "https://example.com/api")).toBe(false);
+  });
+
+  it("matches globs against the full URL, not a hostname", () => {
+    expect(urlMatchesScope("https://cdn.example.com/app.js", "*.js")).toBe(true);
+    expect(urlMatchesScope("https://example.com/admin/users", "*/admin/*")).toBe(true);
+    expect(urlMatchesScope("https://other.test/admin/users", "https://example.com/*")).toBe(false);
+  });
+});
+
 describe("clampMaxResults", () => {
   it("caps at max, floors at 1, and substitutes max for absent or non-finite", () => {
     expect(clampMaxResults(MAX_DISCOVER_RESULTS + 1, MAX_DISCOVER_RESULTS)).toBe(
@@ -148,6 +164,18 @@ describe("UrlCollector", () => {
     const collector = new UrlCollector({ noScope: true }, "example.com");
 
     expect(collector.push("wayback", "https://offsite.com/a")).toBe(true);
+  });
+
+  it("keeps only URLs under urlScope and drops urlOutScope, still on the URL string", () => {
+    const collector = new UrlCollector(
+      { urlScope: ["https://example.com/api"], urlOutScope: ["https://example.com/api/internal"] },
+      "example.com",
+    );
+
+    expect(collector.push("wayback", "https://example.com/api/v1")).toBe(true);
+    expect(collector.push("wayback", "https://example.com/shop")).toBe(false);
+    expect(collector.push("wayback", "https://example.com/api/internal/x")).toBe(false);
+    expect(collector.count).toBe(1);
   });
 
   it("requires at least one match substring and drops any filter substring", () => {

@@ -63,10 +63,13 @@ test/eval-cli.mjs etc.     - packaged/CLI/MCP subprocess gates
 - Streams: CDX-style dumps go through `getTextLines` (plain fetch, status classified before body
   read, early break cancels the reader, 60s default timeout). `ofetch` cannot stream without
   consuming.
-- Domain input: every source request is built from `resolveDomain()`, the derived hostname of a
+- Domain input: every source _request_ is built from `resolveDomain()`, the derived hostname of a
   bare domain or full URL; unparseable input, path-traversing hosts (`.`, `..`, empty labels),
   single-label public suffixes (except `localhost`), and schemeless userinfo are rejected before
-  I/O. `inScope` matches a TLD only as an exact host, not as `*.tld`.
+  I/O. That hostname is the query target, not program scope.
+- Result scope is URL-shaped: default `inScope` is only a host safety net on the URL's host.
+  `urlScope` / `urlOutScope` match the full URL (prefix with `/` `?` `#` boundary, or `*` glob).
+  Do not treat scope as DNS records or as a domain list.
 - Limit: `MAX_DISCOVER_RESULTS` (100000) is the published bound. `UrlCollector` clamps provided
   limits; CLI rejects out of range; MCP/AI schemas use the same constant. Absent limit stays
   unbounded aside from per-source page safeguards.

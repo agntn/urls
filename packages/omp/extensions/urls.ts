@@ -170,6 +170,18 @@ export default function urlsExtension(pi: ExtensionAPI): void {
         description: "Disable the default host-based scope and keep every URL a source returns",
       }),
     ),
+    urlScope: Type.Optional(
+      Type.Array(Type.String({ minLength: 1 }), {
+        description:
+          "Keep only URLs matching at least one URL-scope pattern (prefix or glob with *). Patterns apply to the full URL, not a domain.",
+      }),
+    ),
+    urlOutScope: Type.Optional(
+      Type.Array(Type.String({ minLength: 1 }), {
+        description:
+          "Drop URLs matching any URL-out-scope pattern (prefix or glob with *). Patterns apply to the full URL.",
+      }),
+    ),
     provider: Type.Optional(
       Type.String({
         description:
@@ -200,6 +212,8 @@ export default function urlsExtension(pi: ExtensionAPI): void {
         match: params.match,
         filter: params.filter,
         noScope: params.noScope,
+        urlScope: params.urlScope,
+        urlOutScope: params.urlOutScope,
       };
       const outcome = await lib.runDiscover(params.domain, options, params.provider);
       if (outcome.mode === "comparison") {

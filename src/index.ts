@@ -7,7 +7,14 @@ export type {
   ProviderEntry,
 } from "./core/types.ts";
 export { clampMaxResults, MAX_DISCOVER_RESULTS } from "./core/types.ts";
-export { extractUrls, inScope, normalizeHost, resolveDomain, UrlCollector } from "./core/url.ts";
+export {
+  extractUrls,
+  inScope,
+  normalizeHost,
+  resolveDomain,
+  urlMatchesScope,
+  UrlCollector,
+} from "./core/url.ts";
 export { Provider, requireOperation } from "./core/provider.ts";
 export type { ProviderConstructor, ProviderOperation } from "./core/provider.ts";
 export {

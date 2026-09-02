@@ -91,6 +91,16 @@ export default defineCommand({
       alias: "ns",
       description: "Disable the default host-based scope",
     },
+    "url-scope": {
+      type: "string",
+      alias: "us",
+      description: "Comma-separated URL prefixes or globs; keep only matching URLs",
+    },
+    "url-out-scope": {
+      type: "string",
+      alias: "uos",
+      description: "Comma-separated URL prefixes or globs; drop matching URLs",
+    },
     jsonl: {
       type: "boolean",
       alias: "j",
@@ -103,6 +113,8 @@ export default defineCommand({
       match: splitPatterns(args.match),
       filter: splitPatterns(args.filter),
       noScope: args["no-scope"],
+      urlScope: splitPatterns(args["url-scope"]),
+      urlOutScope: splitPatterns(args["url-out-scope"]),
     };
     const jsonl = args.jsonl ?? false;
     const domain = args.domain;

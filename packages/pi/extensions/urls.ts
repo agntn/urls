@@ -53,6 +53,7 @@ export default function urlsExtension(pi: ExtensionAPI): void {
       "Use urls_discover with a bare domain like example.com; results come from passive sources only, with no active scanning.",
       "urls_discover returns one URL per line; pass provider 'all' to compare every registered source side by side.",
       "Pass match and filter lists to urls_discover to keep or drop URLs by substring.",
+      "Pass urlScope and urlOutScope to urls_discover as URL prefixes or globs; they apply to the full URL, not to a hostname.",
     ],
     parameters: Type.Object({
       domain: Type.String({
@@ -82,6 +83,18 @@ export default function urlsExtension(pi: ExtensionAPI): void {
           description: "Disable the default host-based scope and keep every URL a source returns",
         }),
       ),
+      urlScope: Type.Optional(
+        Type.Array(Type.String({ minLength: 1 }), {
+          description:
+            "Keep only URLs matching at least one URL-scope pattern (prefix or glob with *). Patterns apply to the full URL, not a domain.",
+        }),
+      ),
+      urlOutScope: Type.Optional(
+        Type.Array(Type.String({ minLength: 1 }), {
+          description:
+            "Drop URLs matching any URL-out-scope pattern (prefix or glob with *). Patterns apply to the full URL.",
+        }),
+      ),
       provider: Type.Optional(
         Type.String({
           description:
@@ -97,6 +110,8 @@ export default function urlsExtension(pi: ExtensionAPI): void {
         match: params.match,
         filter: params.filter,
         noScope: params.noScope,
+        urlScope: params.urlScope,
+        urlOutScope: params.urlOutScope,
       };
       const outcome = await lib.runDiscover(params.domain, options, params.provider);
       if (outcome.mode === "comparison") {

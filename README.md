@@ -107,8 +107,11 @@ urls discover example.com -m shop -f privacy
 # JSONL for pipelines
 urls discover example.com -p wayback -n 20 -j
 
-# Disable the host-based scope (keeps URLs the sources report even off-domain)
+# Disable the host-based filter (keeps URLs the sources report even off-domain)
 urls discover example.com -p all --no-scope
+
+# URL-scope: keep /api, drop /api/internal (patterns are URLs, not hosts)
+urls discover example.com --url-scope "https://example.com/api" --url-out-scope "https://example.com/api/internal"
 
 # List sources and what each needs
 urls providers
@@ -122,9 +125,13 @@ urls providers
   bound is reached, so large CDX dumps are not downloaded in full.
 - `match` / `filter` - comma-separated case-insensitive substrings. `match` keeps a URL when it
   contains any of the patterns; `filter` drops a URL when it contains any.
-- `noScope` - disables the default host-based scope. Scoped discovery keeps only URLs whose host
-  is the input domain or one of its subdomains; `www.example.com` belongs to `example.com`, while
-  `example.com.evil.test` does not.
+- `noScope` - disables the default host-based filter (a URL whose host is the input domain or a
+  subdomain). That filter is only a safety net against off-host junk sources return; it is not
+  program scope.
+- `urlScope` / `urlOutScope` - URL-scope patterns (CLI `--url-scope` / `--url-out-scope`). These
+  apply to the **full URL**, not to a hostname or DNS name. A pattern without `*` is a prefix
+  with a `/`, `?`, or `#` boundary (`https://example.com/api` keeps `/api/v1` and drops
+  `/apiv2`). A pattern with `*` is a glob over the whole URL (`*/admin/*`, `*.js`).
 
 The input accepts a bare domain or a full URL; every source request is built from the derived
 hostname (`https://user@www.example.com:8080/docs` runs the enumeration for

@@ -8,6 +8,8 @@ import {
   matchInput,
   noScopeInput,
   providerInput,
+  urlOutScopeInput,
+  urlScopeInput,
 } from "./core/schemas.ts";
 import { listProviders } from "./core/registry.ts";
 import { runDiscover } from "./tool-operations.ts";
@@ -44,19 +46,21 @@ export function createMcpServer(): McpServer {
     "urls_discover",
     {
       description:
-        "Enumerate URLs known for a domain from passive sources. Each result carries the source that found it; the default scope keeps only URLs under the input domain.",
+        "Enumerate URLs known for a domain from passive sources. Each result carries the source that found it; the default host filter keeps URLs under the input domain; urlScope/urlOutScope match full URLs.",
       inputSchema: {
         domain: domainInput,
         limit: limitInput,
         match: matchInput,
         filter: filterInput,
         noScope: noScopeInput,
+        urlScope: urlScopeInput,
+        urlOutScope: urlOutScopeInput,
         ...providerInput,
       },
       annotations: { readOnlyHint: true },
     },
-    async ({ domain, limit, match, filter, noScope, provider }) => {
-      const options = { limit, match, filter, noScope };
+    async ({ domain, limit, match, filter, noScope, urlScope, urlOutScope, provider }) => {
+      const options = { limit, match, filter, noScope, urlScope, urlOutScope };
       const outcome = await runDiscover(domain, options, provider);
       if (outcome.mode === "comparison") {
         return result(serializeOutcomes(outcome.outcomes));

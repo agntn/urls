@@ -46,3 +46,19 @@ export const noScopeInput = z
   .boolean()
   .optional()
   .describe("Disable the default host-based scope and keep every URL a source returns");
+
+/** Keep-only URL-scope patterns; matched against the full URL, not a hostname. */
+export const urlScopeInput = z
+  .array(z.string().trim().min(1))
+  .optional()
+  .describe(
+    "Keep only URLs matching at least one URL-scope pattern (prefix or glob with *). Patterns apply to the full URL, not a domain or DNS name.",
+  );
+
+/** Drop URL-out-scope patterns; matched against the full URL. */
+export const urlOutScopeInput = z
+  .array(z.string().trim().min(1))
+  .optional()
+  .describe(
+    "Drop URLs matching any URL-out-scope pattern (prefix or glob with *). Patterns apply to the full URL.",
+  );

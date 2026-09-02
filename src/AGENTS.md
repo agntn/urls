@@ -6,8 +6,9 @@ Library, CLI, MCP, AI, and shared presentation source for `@agntn/urls`.
 
 - Keep provider responses behind the normalized `discover()` interface; page shapes stay in the
   provider file that owns them.
-- Domain input is normalized once through `resolveDomain()`; scope/filter/dedupe happens only in
-  `UrlCollector`. Selection (explicit / all / fallback) happens only in `runDiscover`.
+- Domain input is normalized once through `resolveDomain()` (query target). Result scope, filter
+  and dedupe happen only in `UrlCollector`; URL-scope patterns (`urlScope` / `urlOutScope`) match
+  the full URL, not a hostname. Selection (explicit / all / fallback) happens only in `runDiscover`.
 - Streams (CDX dumps) go through `getTextLines`; JSON endpoints through `getJSON`. Do not add a
   second HTTP path.
 - Provided `limit` values go through `clampMaxResults(..., MAX_DISCOVER_RESULTS)`; do not copy

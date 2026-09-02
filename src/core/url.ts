@@ -151,29 +151,173 @@ export function inScope(url: string, inputDomain: string): boolean {
 }
 
 /**
+ * True when `url` falls under one URL-scope pattern.
+ *
+ * Scope is the URL string, not a hostname or DNS name. A pattern without `*` is a
+ * prefix: it matches the URL exactly, or when the URL continues with `/`, `?`, or `#`
+ * (or the pattern already ends with `/`). A pattern with `*` is a glob over the whole
+ * URL (`*` = any characters, including none). Matching is case-insensitive.
+ *
+ * @param url Full URL.
+ * @param pattern URL prefix or glob.
+ * @returns {boolean} True when the URL is in that pattern.
+ */
+export function urlMatchesScope(url: string, pattern: string): boolean {
+  const target = url.trim().toLowerCase();
+  const spec = pattern.trim().toLowerCase();
+  if (!target || !spec) return false;
+  if (spec.includes("*")) return globMatch(target, spec);
+  return isUrlPrefix(target, spec);
+}
+
+/**
+ * Prefix match with a path/query/fragment boundary so `.../api` does not keep `.../apiv2`.
+ *
+ * @param url Lowercased URL.
+ * @param prefix Lowercased prefix.
+ * @returns {boolean} True when url is prefix or continues at a URL boundary.
+ */
+function isUrlPrefix(url: string, prefix: string): boolean {
+  if (url === prefix) return true;
+  if (!url.startsWith(prefix)) return false;
+  if (prefix.endsWith("/")) return true;
+  const next = url.charAt(prefix.length);
+  return next === "/" || next === "?" || next === "#";
+}
+
+/**
+ * Glob match with only `*` as a wildcard. Split-and-scan, not a regex, so a hostile
+ * pattern cannot explode into nested quantifiers.
+ *
+ * @param text Lowercased URL.
+ * @param pattern Lowercased glob.
+ * @returns {boolean} True when the glob matches the whole text.
+ */
+function globMatch(text: string, pattern: string): boolean {
+  const parts = pattern.split("*");
+  if (parts.length === 1) return text === (parts[0] ?? "");
+  return globAnchored(text, parts);
+}
+
+/**
+ * Match a multi-part glob after the first `*` has been seen.
+ *
+ * @param text Lowercased URL.
+ * @param parts Pattern split on `*`.
+ * @returns {boolean} True when anchors and middle pieces fit.
+ */
+function globAnchored(text: string, parts: readonly string[]): boolean {
+  const first = parts[0] ?? "";
+  const last = parts.at(-1) ?? "";
+  if (first && !text.startsWith(first)) return false;
+  if (last && !text.endsWith(last)) return false;
+  const end = last ? text.length - last.length : text.length;
+  return globMiddle(text, parts.slice(1, -1), first.length, end);
+}
+
+/**
+ * Advance through interior glob pieces between the start and end anchors.
+ *
+ * @param text Lowercased URL.
+ * @param middle Interior pieces (may include empty strings from `**`).
+ * @param start Index after the prefix.
+ * @param end Index where the suffix begins.
+ * @returns {boolean} True when every piece appears in order before `end`.
+ */
+function globMiddle(text: string, middle: readonly string[], start: number, end: number): boolean {
+  let pos = start;
+  for (const part of middle) {
+    if (!part) continue;
+    const found = text.indexOf(part, pos);
+    if (found === -1 || found + part.length > end) return false;
+    pos = found + part.length;
+  }
+  return pos <= end;
+}
+
+/**
  * Shared per-call collector used by every source.
  *
  * Applies scope, match, and filter rules once per URL, deduplicates, and stops a source the
  * moment the requested limit is reached. Sources page over their backend and check `done`
  * between pages; one implementation, instead of duplicating the rule logic per provider.
  */
+interface CollectorRules {
+  readonly match: string[] | undefined;
+  readonly filter: string[] | undefined;
+  readonly noScope: boolean;
+  readonly urlScope: readonly string[] | undefined;
+  readonly urlOutScope: readonly string[] | undefined;
+  readonly limit: number | undefined;
+}
+
+/**
+ * Normalize collector options once so the constructor stays a straight assignment.
+ *
+ * @param options Caller discovery options.
+ * @returns {CollectorRules} Normalized keep/drop rules.
+ */
+function collectorRules(options: DiscoverOptions | undefined): CollectorRules {
+  if (!options) {
+    return {
+      match: undefined,
+      filter: undefined,
+      noScope: false,
+      urlScope: undefined,
+      urlOutScope: undefined,
+      limit: undefined,
+    };
+  }
+  return {
+    match: lowercaseAll(options.match),
+    filter: lowercaseAll(options.filter),
+    noScope: options.noScope === true,
+    urlScope: options.urlScope,
+    urlOutScope: options.urlOutScope,
+    limit: clampOptionalLimit(options.limit),
+  };
+}
+
+/**
+ * Lowercase every pattern, or leave the list absent.
+ *
+ * @param values Caller patterns.
+ * @returns {string[] | undefined} Lowercased patterns.
+ */
+function lowercaseAll(values: readonly string[] | undefined): string[] | undefined {
+  return values?.map((value) => value.toLowerCase());
+}
+
+/**
+ * Clamp a provided limit; absent stays unbounded.
+ *
+ * @param limit Caller limit.
+ * @returns {number | undefined} Clamped limit, or undefined when none was set.
+ */
+function clampOptionalLimit(limit: number | undefined): number | undefined {
+  if (limit === undefined) return undefined;
+  return clampMaxResults(limit, MAX_DISCOVER_RESULTS);
+}
+
 export class UrlCollector {
   private readonly urls: DiscoveredUrl[] = [];
   private readonly seen = new Set<string>();
   private readonly match: string[] | undefined;
   private readonly filter: string[] | undefined;
   private readonly noScope: boolean;
+  private readonly urlScope: readonly string[] | undefined;
+  private readonly urlOutScope: readonly string[] | undefined;
   private readonly limit: number | undefined;
   private readonly input: string;
 
   constructor(options: DiscoverOptions | undefined, input: string) {
-    this.match = options?.match?.map((value) => value.toLowerCase());
-    this.filter = options?.filter?.map((value) => value.toLowerCase());
-    this.noScope = options?.noScope ?? false;
-    this.limit =
-      options?.limit === undefined
-        ? undefined
-        : clampMaxResults(options.limit, MAX_DISCOVER_RESULTS);
+    const rules = collectorRules(options);
+    this.match = rules.match;
+    this.filter = rules.filter;
+    this.noScope = rules.noScope;
+    this.urlScope = rules.urlScope;
+    this.urlOutScope = rules.urlOutScope;
+    this.limit = rules.limit;
     this.input = input;
   }
 
@@ -213,16 +357,24 @@ export class UrlCollector {
    * @returns {boolean} True when the URL was kept.
    */
   push(source: string, url: string, reference?: string): boolean {
-    if (this.done || this.seen.has(url)) return false;
-    if (!this.noScope && !inScope(url, this.input)) return false;
-
-    const lower = url.toLowerCase();
-    if (isFilteredOut(lower, this.filter)) return false;
-    if (!matchesAny(lower, this.match)) return false;
-
+    if (this.done || this.seen.has(url) || !this.accepts(url)) return false;
     this.seen.add(url);
     this.urls.push({ url, source, input: this.input, ...(reference ? { reference } : {}) });
     return true;
+  }
+
+  /**
+   * Apply host filter, URL-scope, and substring match/filter.
+   *
+   * @param url Candidate URL.
+   * @returns {boolean} True when the URL should be kept.
+   */
+  private accepts(url: string): boolean {
+    if (!this.noScope && !inScope(url, this.input)) return false;
+    if (!keptByUrlScope(url, this.urlScope)) return false;
+    if (droppedByUrlOutScope(url, this.urlOutScope)) return false;
+    const lower = url.toLowerCase();
+    return !isFilteredOut(lower, this.filter) && matchesAny(lower, this.match);
   }
 }
 
@@ -247,4 +399,28 @@ function isFilteredOut(lower: string, filter: readonly string[] | undefined): bo
 function matchesAny(lower: string, match: readonly string[] | undefined): boolean {
   if (!match || match.length === 0) return true;
   return match.some((value) => lower.includes(value));
+}
+
+/**
+ * Keep when no URL-scope patterns are set, otherwise when any pattern matches.
+ *
+ * @param url Full URL.
+ * @param patterns URL-scope patterns.
+ * @returns {boolean} True when the URL survives URL-scope.
+ */
+function keptByUrlScope(url: string, patterns: readonly string[] | undefined): boolean {
+  if (!patterns || patterns.length === 0) return true;
+  return patterns.some((pattern) => urlMatchesScope(url, pattern));
+}
+
+/**
+ * Drop when any URL-out-scope pattern matches.
+ *
+ * @param url Full URL.
+ * @param patterns URL-out-scope patterns.
+ * @returns {boolean} True when the URL is out of URL-scope.
+ */
+function droppedByUrlOutScope(url: string, patterns: readonly string[] | undefined): boolean {
+  if (!patterns || patterns.length === 0) return false;
+  return patterns.some((pattern) => urlMatchesScope(url, pattern));
 }

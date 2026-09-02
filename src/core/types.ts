@@ -28,6 +28,15 @@ export interface DiscoverOptions {
   readonly filter?: readonly string[];
   /** Disable the default host-based scope, keeping every URL a source returns */
   readonly noScope?: boolean;
+  /**
+   * Keep only URLs that match at least one URL-scope pattern (full URL, not a hostname).
+   * A pattern without `*` is a prefix with a `/`, `?`, or `#` boundary; `*` is a glob.
+   */
+  readonly urlScope?: readonly string[];
+  /**
+   * Drop URLs that match at least one URL-out-scope pattern. Same matching rules as `urlScope`.
+   */
+  readonly urlOutScope?: readonly string[];
   /** Abort signal forwarded to in-flight requests */
   readonly signal?: AbortSignal;
 }
