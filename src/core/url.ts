@@ -1,6 +1,14 @@
 /** URL extraction, host normalization, scope, and the shared discovery collector */
 
 import { clampMaxResults, MAX_DISCOVER_RESULTS } from "./types.ts";
+import {
+  normalizeUrl,
+  parseSeenAt,
+  parseTimeBound,
+  stampInWindow,
+  urlExtension,
+  urlQueryKeys,
+} from "./url-shape.ts";
 import type { DiscoverOptions, DiscoveredUrl } from "./types.ts";
 import { InvalidInputError } from "./errors.ts";
 
@@ -248,6 +256,10 @@ interface CollectorRules {
   readonly noScope: boolean;
   readonly urlScope: readonly string[] | undefined;
   readonly urlOutScope: readonly string[] | undefined;
+  readonly ext: string[] | undefined;
+  readonly hasQuery: boolean | undefined;
+  readonly from: string | undefined;
+  readonly to: string | undefined;
   readonly limit: number | undefined;
 }
 
@@ -265,6 +277,10 @@ function collectorRules(options: DiscoverOptions | undefined): CollectorRules {
       noScope: false,
       urlScope: undefined,
       urlOutScope: undefined,
+      ext: undefined,
+      hasQuery: undefined,
+      from: undefined,
+      to: undefined,
       limit: undefined,
     };
   }
@@ -274,6 +290,10 @@ function collectorRules(options: DiscoverOptions | undefined): CollectorRules {
     noScope: options.noScope === true,
     urlScope: options.urlScope,
     urlOutScope: options.urlOutScope,
+    ext: lowercaseAll(options.ext),
+    hasQuery: options.hasQuery,
+    from: options.from === undefined ? undefined : parseTimeBound(options.from, "from"),
+    to: options.to === undefined ? undefined : parseTimeBound(options.to, "to"),
     limit: clampOptionalLimit(options.limit),
   };
 }
@@ -301,12 +321,16 @@ function clampOptionalLimit(limit: number | undefined): number | undefined {
 
 export class UrlCollector {
   private readonly urls: DiscoveredUrl[] = [];
-  private readonly seen = new Set<string>();
+  private readonly seen = new Map<string, number>();
   private readonly match: string[] | undefined;
   private readonly filter: string[] | undefined;
   private readonly noScope: boolean;
   private readonly urlScope: readonly string[] | undefined;
   private readonly urlOutScope: readonly string[] | undefined;
+  private readonly ext: string[] | undefined;
+  private readonly hasQuery: boolean | undefined;
+  private readonly from: string | undefined;
+  private readonly to: string | undefined;
   private readonly limit: number | undefined;
   private readonly input: string;
 
@@ -317,6 +341,10 @@ export class UrlCollector {
     this.noScope = rules.noScope;
     this.urlScope = rules.urlScope;
     this.urlOutScope = rules.urlOutScope;
+    this.ext = rules.ext;
+    this.hasQuery = rules.hasQuery;
+    this.from = rules.from;
+    this.to = rules.to;
     this.limit = rules.limit;
     this.input = input;
   }
@@ -349,22 +377,34 @@ export class UrlCollector {
   }
 
   /**
-   * Consider one extracted URL; returns true when the URL was kept.
+   * Consider one extracted URL; returns true when the URL was newly kept.
+   *
+   * Dedup uses {@link normalizeUrl}. A later occurrence of the same normalized URL updates
+   * `firstSeen` / `lastSeen` and is not counted again.
    *
    * @param source Registry key reporting the URL
    * @param url Full URL string
    * @param reference Query URL that returned the record, when known
-   * @returns {boolean} True when the URL was kept.
+   * @param seenAt Archive timestamp or ISO instant for this occurrence
+   * @returns {boolean} True when the URL was newly kept.
    */
-  push(source: string, url: string, reference?: string): boolean {
-    if (this.done || this.seen.has(url) || !this.accepts(url)) return false;
-    this.seen.add(url);
-    this.urls.push({ url, source, input: this.input, ...(reference ? { reference } : {}) });
+  push(source: string, url: string, reference?: string, seenAt?: string): boolean {
+    const seen = parseSeenAt(seenAt);
+    if (!stampInWindow(seen?.stamp, this.from, this.to)) return false;
+    const key = normalizeUrl(url);
+    const existing = this.seen.get(key);
+    if (existing !== undefined) {
+      this.mergeSeen(existing, seen?.iso);
+      return false;
+    }
+    if (this.done || !this.accepts(url)) return false;
+    this.seen.set(key, this.urls.length);
+    this.urls.push(this.record(source, url, reference, seen?.iso));
     return true;
   }
 
   /**
-   * Apply host filter, URL-scope, and substring match/filter.
+   * Apply host filter, URL-scope, extension, query, and substring match/filter.
    *
    * @param url Candidate URL.
    * @returns {boolean} True when the URL should be kept.
@@ -373,8 +413,76 @@ export class UrlCollector {
     if (!this.noScope && !inScope(url, this.input)) return false;
     if (!keptByUrlScope(url, this.urlScope)) return false;
     if (droppedByUrlOutScope(url, this.urlOutScope)) return false;
+    if (!this.matchesExt(url) || !this.matchesQuery(url)) return false;
     const lower = url.toLowerCase();
     return !isFilteredOut(lower, this.filter) && matchesAny(lower, this.match);
+  }
+
+  /**
+   * Keep when no extension filter is set, otherwise when the path extension is listed.
+   *
+   * @param url Candidate URL.
+   * @returns {boolean} True when the extension filter passes.
+   */
+  private matchesExt(url: string): boolean {
+    if (!this.ext || this.ext.length === 0) return true;
+    const ext = urlExtension(url);
+    return ext !== undefined && this.ext.includes(ext);
+  }
+
+  /**
+   * Keep according to `hasQuery` after tracking keys are dropped.
+   *
+   * @param url Candidate URL.
+   * @returns {boolean} True when the query filter passes.
+   */
+  private matchesQuery(url: string): boolean {
+    if (this.hasQuery === undefined) return true;
+    const has = urlQueryKeys(url).length > 0;
+    return this.hasQuery === has;
+  }
+
+  /**
+   * Widen first/last seen on an already collected URL.
+   *
+   * @param index Index in `urls`.
+   * @param iso New occurrence instant.
+   */
+  private mergeSeen(index: number, iso: string | undefined): void {
+    if (!iso) return;
+    const current = this.urls[index];
+    if (!current) return;
+    const firstSeen = current.firstSeen && current.firstSeen < iso ? current.firstSeen : iso;
+    const lastSeen = current.lastSeen && current.lastSeen > iso ? current.lastSeen : iso;
+    this.urls[index] = { ...current, firstSeen, lastSeen };
+  }
+
+  /**
+   * Build a result record, omitting empty optional fields.
+   *
+   * @param source Registry key.
+   * @param url Original URL.
+   * @param reference Query URL.
+   * @param iso Seen-at instant.
+   * @returns {DiscoveredUrl} The stored record.
+   */
+  private record(
+    source: string,
+    url: string,
+    reference: string | undefined,
+    iso: string | undefined,
+  ): DiscoveredUrl {
+    const ext = urlExtension(url);
+    const queryKeys = urlQueryKeys(url);
+    return {
+      url,
+      source,
+      input: this.input,
+      ...(reference ? { reference } : {}),
+      ...(ext ? { ext } : {}),
+      ...(queryKeys.length > 0 ? { queryKeys } : {}),
+      ...(iso ? { firstSeen: iso, lastSeen: iso } : {}),
+    };
   }
 }
 

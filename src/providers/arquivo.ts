@@ -19,30 +19,10 @@ import type {
 import { Provider } from "../core/provider.ts";
 import { buildQuery } from "../core/client.ts";
 import { UrlCollector, extractUrls, resolveDomain } from "../core/url.ts";
+import { parseCdxNdjsonLine } from "../core/url-shape.ts";
 
 /** Arquivo hangs without a limit; this is the per-request page safeguard. */
 const CDX_PAGE_LIMIT = 10_000;
-
-interface ArquivoRow {
-  readonly url?: string;
-}
-
-/**
- * Read the `url` field from one NDJSON line. Malformed lines are skipped.
- *
- * @param line One CDX NDJSON record.
- * @returns {string | undefined} The URL field, when present.
- */
-function parseArquivoUrl(line: string): string | undefined {
-  try {
-    const row: unknown = JSON.parse(line);
-    if (typeof row !== "object" || row === null) return undefined;
-    const url = (row as ArquivoRow).url;
-    return typeof url === "string" ? url : undefined;
-  } catch {
-    return undefined;
-  }
-}
 
 export class Arquivo extends Provider {
   static readonly key = "arquivo";
@@ -66,7 +46,7 @@ export class Arquivo extends Provider {
       url: target,
       matchType: "domain",
       output: "json",
-      fields: "url",
+      fields: "url,timestamp",
       limit: CDX_PAGE_LIMIT,
     })}`;
 
@@ -75,10 +55,10 @@ export class Arquivo extends Provider {
     })) {
       if (collector.done) break;
       if (!line.trim()) continue;
-      const record = parseArquivoUrl(line);
-      if (!record) continue;
-      for (const extracted of extractUrls(record)) {
-        collector.push(this.name, extracted, apiURL);
+      const parsed = parseCdxNdjsonLine(line);
+      if (!parsed) continue;
+      for (const extracted of extractUrls(parsed.url)) {
+        collector.push(this.name, extracted, apiURL, parsed.timestamp);
       }
     }
 

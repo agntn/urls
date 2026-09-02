@@ -134,6 +134,13 @@ urls providers
   apply to the **full URL**, not to a hostname or DNS name. A pattern without `*` is a prefix
   with a `/`, `?`, or `#` boundary (`https://example.com/api` keeps `/api/v1` and drops
   `/apiv2`). A pattern with `*` is a glob over the whole URL (`*/admin/*`, `*.js`).
+- `ext` - keep URLs whose path ends with one of these extensions (`js`, `json`, `bak`).
+- `hasQuery` - keep only URLs that still have query keys after tracking keys (`utm_*`, `gclid`,
+  `fbclid`, ...) are dropped.
+- `from` / `to` - inclusive seen-at window as archive digits (`2019`) or an ISO date. Sources
+  that do not report a timestamp are not dropped. CDX sources fill `firstSeen` / `lastSeen`.
+- Dedup is on the normalized URL (fragment stripped, tracking query dropped, remaining query
+  sorted, trailing slash removed). The stored `url` is the first original form.
 
 The input accepts a bare domain or a full URL; every source request is built from the derived
 hostname (`https://user@www.example.com:8080/docs` runs the enumeration for

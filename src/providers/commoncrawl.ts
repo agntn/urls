@@ -20,6 +20,7 @@ import type {
 } from "../core/types.ts";
 import { Provider } from "../core/provider.ts";
 import { UrlCollector, extractUrls, resolveDomain } from "../core/url.ts";
+import { parseCdxTextLine } from "../core/url-shape.ts";
 
 /** Number of calendar years covered, newest first. */
 const MAX_YEARS_BACK = 5;
@@ -113,13 +114,14 @@ export class CommonCrawl extends Provider {
     const apiURL = new URL(cdxApi);
     apiURL.searchParams.set("url", `*.${domain}`);
     apiURL.searchParams.set("output", "text");
-    apiURL.searchParams.set("fl", "url");
+    apiURL.searchParams.set("fl", "url,timestamp");
 
     for await (const line of this.getTextLines(apiURL.toString())) {
       if (collector.done) break;
-      if (!line.trim()) continue;
-      for (const extracted of extractUrls(line)) {
-        collector.push(this.name, extracted, apiURL.toString());
+      const parsed = parseCdxTextLine(line);
+      if (!parsed) continue;
+      for (const extracted of extractUrls(parsed.url)) {
+        collector.push(this.name, extracted, apiURL.toString(), parsed.timestamp);
       }
     }
   }

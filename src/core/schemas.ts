@@ -62,3 +62,31 @@ export const urlOutScopeInput = z
   .describe(
     "Drop URLs matching any URL-out-scope pattern (prefix or glob with *). Patterns apply to the full URL.",
   );
+
+/** Path extensions to keep, without a leading dot. */
+export const extInput = z
+  .array(z.string().trim().min(1))
+  .optional()
+  .describe("Keep only URLs whose path ends with one of these extensions (for example js, json)");
+
+/** Keep URLs that still have query keys after tracking keys are dropped. */
+export const hasQueryInput = z
+  .boolean()
+  .optional()
+  .describe("When true, keep only URLs that still have query keys after tracking keys are dropped");
+
+/** Inclusive start of the seen-at window. */
+export const fromInput = z
+  .string()
+  .trim()
+  .min(1)
+  .optional()
+  .describe("Inclusive start of the seen-at window (archive digits such as 2019, or an ISO date)");
+
+/** Inclusive end of the seen-at window. */
+export const toInput = z
+  .string()
+  .trim()
+  .min(1)
+  .optional()
+  .describe("Inclusive end of the seen-at window (archive digits such as 2019, or an ISO date)");

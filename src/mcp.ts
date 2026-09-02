@@ -10,6 +10,10 @@ import {
   providerInput,
   urlOutScopeInput,
   urlScopeInput,
+  extInput,
+  hasQueryInput,
+  fromInput,
+  toInput,
 } from "./core/schemas.ts";
 import { listProviders } from "./core/registry.ts";
 import { runDiscover } from "./tool-operations.ts";
@@ -55,12 +59,40 @@ export function createMcpServer(): McpServer {
         noScope: noScopeInput,
         urlScope: urlScopeInput,
         urlOutScope: urlOutScopeInput,
+        ext: extInput,
+        hasQuery: hasQueryInput,
+        from: fromInput,
+        to: toInput,
         ...providerInput,
       },
       annotations: { readOnlyHint: true },
     },
-    async ({ domain, limit, match, filter, noScope, urlScope, urlOutScope, provider }) => {
-      const options = { limit, match, filter, noScope, urlScope, urlOutScope };
+    async ({
+      domain,
+      limit,
+      match,
+      filter,
+      noScope,
+      urlScope,
+      urlOutScope,
+      ext,
+      hasQuery,
+      from,
+      to,
+      provider,
+    }) => {
+      const options = {
+        limit,
+        match,
+        filter,
+        noScope,
+        urlScope,
+        urlOutScope,
+        ext,
+        hasQuery,
+        from,
+        to,
+      };
       const outcome = await runDiscover(domain, options, provider);
       if (outcome.mode === "comparison") {
         return result(serializeOutcomes(outcome.outcomes));

@@ -26,7 +26,17 @@ function splitPatterns(value: string | undefined): string[] | undefined {
 
 function printJsonl(input: string, urls: readonly DiscoveredUrl[]): void {
   for (const url of urls) {
-    consola.log(JSON.stringify({ url: url.url, input, source: url.source }));
+    consola.log(
+      JSON.stringify({
+        url: url.url,
+        input,
+        source: url.source,
+        ...(url.ext ? { ext: url.ext } : {}),
+        ...(url.queryKeys ? { queryKeys: url.queryKeys } : {}),
+        ...(url.firstSeen ? { firstSeen: url.firstSeen } : {}),
+        ...(url.lastSeen ? { lastSeen: url.lastSeen } : {}),
+      }),
+    );
   }
 }
 
@@ -101,6 +111,22 @@ export default defineCommand({
       alias: "uos",
       description: "Comma-separated URL prefixes or globs; drop matching URLs",
     },
+    ext: {
+      type: "string",
+      description: "Comma-separated path extensions to keep (js, json, bak)",
+    },
+    "has-query": {
+      type: "boolean",
+      description: "Keep only URLs that still have query keys after dropping tracking keys",
+    },
+    from: {
+      type: "string",
+      description: "Inclusive start of the seen-at window (2019 or ISO date)",
+    },
+    to: {
+      type: "string",
+      description: "Inclusive end of the seen-at window (2019 or ISO date)",
+    },
     jsonl: {
       type: "boolean",
       alias: "j",
@@ -115,6 +141,10 @@ export default defineCommand({
       noScope: args["no-scope"],
       urlScope: splitPatterns(args["url-scope"]),
       urlOutScope: splitPatterns(args["url-out-scope"]),
+      ext: splitPatterns(args.ext),
+      hasQuery: args["has-query"],
+      from: args.from,
+      to: args.to,
     };
     const jsonl = args.jsonl ?? false;
     const domain = args.domain;

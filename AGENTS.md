@@ -69,7 +69,8 @@ test/eval-cli.mjs etc.     - packaged/CLI/MCP subprocess gates
   I/O. That hostname is the query target, not program scope.
 - Result scope is URL-shaped: default `inScope` is only a host safety net on the URL's host.
   `urlScope` / `urlOutScope` match the full URL (prefix with `/` `?` `#` boundary, or `*` glob).
-  Do not treat scope as DNS records or as a domain list.
+  Do not treat scope as DNS records or as a domain list. Dedup keys go through `normalizeUrl`.
+  CDX sources pass archive timestamps into the collector as `firstSeen` / `lastSeen`.
 - Limit: `MAX_DISCOVER_RESULTS` (100000) is the published bound. `UrlCollector` clamps provided
   limits; CLI rejects out of range; MCP/AI schemas use the same constant. Absent limit stays
   unbounded aside from per-source page safeguards.

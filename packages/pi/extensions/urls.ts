@@ -95,6 +95,26 @@ export default function urlsExtension(pi: ExtensionAPI): void {
             "Drop URLs matching any URL-out-scope pattern (prefix or glob with *). Patterns apply to the full URL.",
         }),
       ),
+      ext: Type.Optional(
+        Type.Array(Type.String({ minLength: 1 }), {
+          description: "Keep only URLs whose path ends with one of these extensions (js, json).",
+        }),
+      ),
+      hasQuery: Type.Optional(
+        Type.Boolean({
+          description: "Keep only URLs that still have query keys after tracking keys are dropped.",
+        }),
+      ),
+      from: Type.Optional(
+        Type.String({
+          description: "Inclusive start of the seen-at window (archive digits or ISO date).",
+        }),
+      ),
+      to: Type.Optional(
+        Type.String({
+          description: "Inclusive end of the seen-at window (archive digits or ISO date).",
+        }),
+      ),
       provider: Type.Optional(
         Type.String({
           description:
@@ -112,6 +132,10 @@ export default function urlsExtension(pi: ExtensionAPI): void {
         noScope: params.noScope,
         urlScope: params.urlScope,
         urlOutScope: params.urlOutScope,
+        ext: params.ext,
+        hasQuery: params.hasQuery,
+        from: params.from,
+        to: params.to,
       };
       const outcome = await lib.runDiscover(params.domain, options, params.provider);
       if (outcome.mode === "comparison") {

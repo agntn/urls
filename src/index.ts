@@ -15,6 +15,16 @@ export {
   urlMatchesScope,
   UrlCollector,
 } from "./core/url.ts";
+export {
+  archiveStampToIso,
+  normalizeUrl,
+  parseCdxNdjsonLine,
+  parseCdxTextLine,
+  parseTimeBound,
+  uniqueQueryKeys,
+  urlExtension,
+  urlQueryKeys,
+} from "./core/url-shape.ts";
 export { Provider, requireOperation } from "./core/provider.ts";
 export type { ProviderConstructor, ProviderOperation } from "./core/provider.ts";
 export {

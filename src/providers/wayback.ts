@@ -21,6 +21,7 @@ import type {
 import { Provider } from "../core/provider.ts";
 import { buildQuery } from "../core/client.ts";
 import { UrlCollector, extractUrls, resolveDomain } from "../core/url.ts";
+import { parseCdxTextLine } from "../core/url-shape.ts";
 
 export class Wayback extends Provider {
   static readonly key = "wayback";
@@ -43,16 +44,17 @@ export class Wayback extends Provider {
     const apiURL = `${this.baseUrl}/cdx/search/cdx${buildQuery({
       url: `${target}/*`,
       output: "txt",
-      fl: "original",
+      fl: "original,timestamp",
     })}`;
 
     for await (const line of this.getTextLines(apiURL, {
       headers: { Accept: "text/plain, */*" },
     })) {
       if (collector.done) break;
-      if (!line.trim()) continue;
-      for (const extracted of extractUrls(line)) {
-        collector.push(this.name, extracted, apiURL);
+      const parsed = parseCdxTextLine(line);
+      if (!parsed) continue;
+      for (const extracted of extractUrls(parsed.url)) {
+        collector.push(this.name, extracted, apiURL, parsed.timestamp);
       }
     }
 

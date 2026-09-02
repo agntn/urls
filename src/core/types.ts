@@ -12,6 +12,14 @@ export interface DiscoveredUrl {
   readonly input: string;
   /** Query URL that returned the record, when the source reports it */
   readonly reference?: string;
+  /** Path extension without a leading dot, when the last segment has one */
+  readonly ext?: string;
+  /** Query keys remaining after tracking keys are dropped */
+  readonly queryKeys?: readonly string[];
+  /** Earliest source timestamp for this URL, UTC ISO-8601 */
+  readonly firstSeen?: string;
+  /** Latest source timestamp for this URL, UTC ISO-8601 */
+  readonly lastSeen?: string;
 }
 
 /** Options shared by every discovery call. */
@@ -37,6 +45,14 @@ export interface DiscoverOptions {
    * Drop URLs that match at least one URL-out-scope pattern. Same matching rules as `urlScope`.
    */
   readonly urlOutScope?: readonly string[];
+  /** Keep only URLs whose path ends with one of these extensions (no leading dot) */
+  readonly ext?: readonly string[];
+  /** When true, keep only URLs that still have query keys after tracking keys are dropped */
+  readonly hasQuery?: boolean;
+  /** Inclusive start of the seen-at window (archive digits or ISO date) */
+  readonly from?: string;
+  /** Inclusive end of the seen-at window (archive digits or ISO date) */
+  readonly to?: string;
   /** Abort signal forwarded to in-flight requests */
   readonly signal?: AbortSignal;
 }

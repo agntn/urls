@@ -215,4 +215,47 @@ describe("UrlCollector", () => {
     expect(collector.push("wayback", "https://example.com/a")).toBe(false);
     expect(collector.count).toBe(1);
   });
+
+  it("deduplicates tracking-query variants via normalizeUrl", () => {
+    const collector = new UrlCollector({ noScope: true }, "example.com");
+
+    expect(collector.push("wayback", "https://example.com/a?utm_source=x")).toBe(true);
+    expect(collector.push("wayback", "https://example.com/a")).toBe(false);
+    expect(collector.count).toBe(1);
+  });
+
+  it("filters by extension and remaining query keys", () => {
+    const collector = new UrlCollector({ ext: ["js"], hasQuery: true }, "example.com");
+
+    expect(collector.push("wayback", "https://example.com/app.js?id=1")).toBe(true);
+    expect(collector.push("wayback", "https://example.com/app.js")).toBe(false);
+    expect(collector.push("wayback", "https://example.com/app.json?id=1")).toBe(false);
+    expect(collector.results[0]).toMatchObject({ ext: "js", queryKeys: ["id"] });
+  });
+
+  it("keeps the earliest and latest timestamps on a normalized duplicate", () => {
+    const collector = new UrlCollector(undefined, "example.com");
+
+    expect(collector.push("wayback", "https://example.com/a", undefined, "20090101000000")).toBe(
+      true,
+    );
+    expect(collector.push("wayback", "https://example.com/a", undefined, "20100101000000")).toBe(
+      false,
+    );
+    expect(collector.results[0]).toMatchObject({
+      firstSeen: "2009-01-01T00:00:00Z",
+      lastSeen: "2010-01-01T00:00:00Z",
+    });
+  });
+
+  it("drops occurrences outside the seen-at window", () => {
+    const collector = new UrlCollector({ from: "2010", to: "2010" }, "example.com");
+
+    expect(collector.push("wayback", "https://example.com/a", undefined, "20090101000000")).toBe(
+      false,
+    );
+    expect(collector.push("wayback", "https://example.com/a", undefined, "20100601000000")).toBe(
+      true,
+    );
+  });
 });
