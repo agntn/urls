@@ -20,8 +20,9 @@ Keep AGENTS.md updated with project status.
 - **Registry**: lazy manifest (`builtins` in `src/providers/index.ts`); `create()` is async,
   single-flight, retries a rejected load; `sideEffects: false`; subpath `./providers/*`
 - **Test**: vitest + `test/eval-*.mjs` subprocess gates
-- **Lint**: oxlint + oxfmt through `@agntn/ox`, `prefer-readonly-parameter-types` allow list
-  extended repo-locally (see `oxlint.config.ts`)
+- **Lint**: oxlint + oxfmt through `@agntn/ox` (spread, not extends). Readonly allow-list is host
+  ABI, lib types with mutating methods, and the three classes the rule cannot see as unused
+  mutably (`Provider`, `UrlCollector`, `UrlsError`). Eval `*.mjs` override only `no-unsafe-*`.
 - **Package manager**: pnpm 11
 
 ## Scripts

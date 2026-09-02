@@ -35,7 +35,7 @@ export function formatSourceBlock(input: string, urls: readonly DiscoveredUrl[])
  */
 export function formatDiscoverAll(
   input: string,
-  outcomes: readonly ProviderOutcome<DiscoveredUrl[]>[],
+  outcomes: readonly ProviderOutcome<readonly DiscoveredUrl[]>[],
 ): string {
   return outcomes
     .map((outcome) =>
@@ -50,11 +50,11 @@ export function formatDiscoverAll(
  * JSON-safe comparison lines for MCP / AI output.
  *
  * @param outcomes Per-provider results or normalized failures.
- * @returns {SerializedOutcome<DiscoveredUrl[]>[]} Outcomes reduced to JSON-safe records.
+ * @returns {SerializedOutcome<readonly DiscoveredUrl[]>[]} Outcomes reduced to JSON-safe records.
  */
 export function serializeDiscoverAll(
-  outcomes: readonly ProviderOutcome<DiscoveredUrl[]>[],
-): SerializedOutcome<DiscoveredUrl[]>[] {
+  outcomes: readonly ProviderOutcome<readonly DiscoveredUrl[]>[],
+): SerializedOutcome<readonly DiscoveredUrl[]>[] {
   return outcomes.map((outcome) => {
     if (outcome.error) return { provider: outcome.provider, error: outcome.error.message };
     return { provider: outcome.provider, result: outcome.result };

@@ -34,12 +34,31 @@ function loadLibrary(): Promise<typeof UrlsModule> {
  * may carry ANSI/OSC escape sequences or raw C0/C1 control bytes that OMP's Text component passes
  * through to the terminal unchanged. String() first, because hostile JSON is not bound by the
  * declared parameter types.
+ *
+ * Control bytes are stripped with code points, not a regex class, so `no-control-regex` stays on.
  */
-// oxlint-disable-next-line no-control-regex -- Terminal control bytes are precisely what this boundary removes.
-const CONTROL_BYTES = /[\u0000-\u001F\u007F-\u009F]/g;
-// oxlint-disable-next-line no-control-regex -- Same boundary, with newlines kept for block output.
-const CONTROL_BYTES_KEEP_NEWLINE = /[\u0000-\u0009\u000B-\u001F\u007F-\u009F]/g;
 const SPACE_RUNS = / +/g;
+
+/**
+ * Replace C0/C1 bytes with spaces, optionally keeping newline.
+ *
+ * @param text Already-stripped-of-VT text.
+ * @param keepNewline Preserve U+000A.
+ * @returns {string} Text without other control bytes.
+ */
+function replaceControlBytes(text: string, keepNewline: boolean): string {
+  let out = "";
+  for (const char of text) {
+    const code = char.codePointAt(0) ?? 0;
+    const isControl = code <= 0x1f || (code >= 0x7f && code <= 0x9f);
+    if (keepNewline && code === 0x0a) {
+      out += char;
+      continue;
+    }
+    out += isControl ? " " : char;
+  }
+  return out;
+}
 
 /**
  * Sanitize one interpolated value for the terminal.
@@ -48,8 +67,7 @@ const SPACE_RUNS = / +/g;
  * @returns {string} Sanitized single-line text.
  */
 export function sanitizeTerminalText(value: unknown): string {
-  return stripVTControlCharacters(String(value))
-    .replace(CONTROL_BYTES, " ")
+  return replaceControlBytes(stripVTControlCharacters(String(value)), false)
     .replace(SPACE_RUNS, " ")
     .trim();
 }
@@ -61,7 +79,7 @@ export function sanitizeTerminalText(value: unknown): string {
  * @returns {string} Sanitized multi-line text.
  */
 function sanitizeTerminalBlock(text: string): string {
-  return stripVTControlCharacters(text).replace(CONTROL_BYTES_KEEP_NEWLINE, " ");
+  return replaceControlBytes(stripVTControlCharacters(text), true);
 }
 
 type UrlsToolResult = AgentToolResult<undefined>;
@@ -96,46 +114,32 @@ export default function urlsExtension(pi: ExtensionAPI): void {
   pi.setLabel("Urls");
 
   type RenderCallOptions = { readonly isPartial?: boolean; readonly spinnerFrame?: number };
-  type RenderTheme = Parameters<typeof renderStatusLine>[1];
 
   /**
-   * Build one sanitized status line for the TUI renderer.
+   * Build the status-line payload. The host `theme` stays on `renderCall` so its type is
+   * inferred and `ignoreInferredTypes` applies — no `Parameters<>` alias, no disable.
    *
    * @param title Tool title.
    * @param description Short call description.
    * @param options Render state.
-   * @param theme Render theme.
-   * @returns {Text} A Text row.
+   * @returns {object} The payload `renderStatusLine` expects as its first argument.
    */
-  function statusLine(
+  function statusPayload(
     title: string,
     description: string,
     options: RenderCallOptions,
-    // RenderTheme is an alias over `Parameters<typeof renderStatusLine>[1]`, which resolves
-    // structurally and never matches the allow list by name. A/B verified 2026-09-02: the
-    // comment is required, the rule is red without it.
-    // oxlint-disable-next-line typescript/prefer-readonly-parameter-types
-    theme: RenderTheme,
-  ): Text {
+  ): Parameters<typeof renderStatusLine>[0] {
     const icon = options.isPartial
       ? options.spinnerFrame === undefined
         ? "pending"
         : "running"
       : "done";
-
-    return new Text(
-      renderStatusLine(
-        {
-          icon,
-          spinnerFrame: options.spinnerFrame,
-          title,
-          description: sanitizeTerminalText(description),
-        },
-        theme,
-      ),
-      0,
-      0,
-    );
+    return {
+      icon,
+      spinnerFrame: options.spinnerFrame,
+      title,
+      description: sanitizeTerminalText(description),
+    };
   }
 
   const discoverParameters = Type.Object({
@@ -183,7 +187,11 @@ export default function urlsExtension(pi: ExtensionAPI): void {
     parameters: discoverParameters,
     approval: "read",
     renderCall(args, options, theme) {
-      return statusLine("Urls Discover", String(args.domain), options, theme);
+      return new Text(
+        renderStatusLine(statusPayload("Urls Discover", String(args.domain), options), theme),
+        0,
+        0,
+      );
     },
     async execute(_toolCallId, params): Promise<UrlsToolResult> {
       const lib = await loadLibrary();
@@ -210,7 +218,11 @@ export default function urlsExtension(pi: ExtensionAPI): void {
     parameters: providersParameters,
     approval: "read",
     renderCall(_args, options, theme) {
-      return statusLine("Urls Providers", "list", options, theme);
+      return new Text(
+        renderStatusLine(statusPayload("Urls Providers", "list", options), theme),
+        0,
+        0,
+      );
     },
     async execute(): Promise<UrlsToolResult> {
       const lib = await loadLibrary();

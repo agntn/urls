@@ -10,7 +10,7 @@ const USER_AGENT = `agntn-urls/${version} (https://github.com/agntn/urls)`;
 /** Request metadata shared by the HTTP helpers. */
 export interface ClientOptions {
   readonly timeout?: number;
-  readonly headers?: Record<string, string>;
+  readonly headers?: { readonly [header: string]: string };
   readonly signal?: AbortSignal;
   readonly provider?: string;
 }
