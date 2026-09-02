@@ -18,6 +18,12 @@ export const builtins: readonly ProviderEntry[] = [
     load: () => import("./alienvault.ts").then((m) => m.AlienVault),
   },
   {
+    key: "arquivo",
+    capabilities: { discover: true },
+    defaultURL: "https://arquivo.pt",
+    load: () => import("./arquivo.ts").then((m) => m.Arquivo),
+  },
+  {
     key: "commoncrawl",
     capabilities: { discover: true },
     defaultURL: "https://index.commoncrawl.org",

@@ -51,7 +51,14 @@ describe("runDiscover", () => {
     expect(outcome.mode).toBe("comparison");
     if (outcome.mode === "comparison") {
       const providers = outcome.outcomes.map((entry) => entry.provider);
-      expect(providers).toEqual(["alienvault", "commoncrawl", "urlscan", "virustotal", "wayback"]);
+      expect(providers).toEqual([
+        "alienvault",
+        "arquivo",
+        "commoncrawl",
+        "urlscan",
+        "virustotal",
+        "wayback",
+      ]);
       const alienvault = outcome.outcomes.find((entry) => entry.provider === "alienvault");
       expect(alienvault?.result?.[0]?.url).toBe("https://example.com/a");
     }

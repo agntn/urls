@@ -37,8 +37,9 @@ function check(name, ok, detail = "") {
 const providers = run(["providers"]);
 check("providers exits 0", providers.status === 0, providers.stderr);
 check(
-  "providers lists the five sources and flags the key-requiring backend",
+  "providers lists the six sources and flags the key-requiring backend",
   providers.stdout.includes("alienvault") &&
+    providers.stdout.includes("arquivo") &&
     providers.stdout.includes("wayback") &&
     providers.stdout.includes("virustotal") &&
     providers.stdout.includes("requires API key"),

@@ -111,6 +111,6 @@ describe("urls OMP extension", () => {
     const result = await tool.execute("test", {}, undefined, undefined, unusedContext);
 
     const text = (result.content[0] as { text: string }).text;
-    expect(text).toMatch(/^Registered providers \(5\):/);
+    expect(text).toMatch(/^Registered providers \(6\):/);
   });
 });

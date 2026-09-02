@@ -37,7 +37,14 @@ describe("discoverAll", () => {
     const outcomes = await discoverAll("example.com");
 
     const names = outcomes.map((outcome) => outcome.provider);
-    expect(names).toEqual(["alienvault", "commoncrawl", "urlscan", "virustotal", "wayback"]);
+    expect(names).toEqual([
+      "alienvault",
+      "arquivo",
+      "commoncrawl",
+      "urlscan",
+      "virustotal",
+      "wayback",
+    ]);
 
     const alienvault = outcomes.find((outcome) => outcome.provider === "alienvault");
     expect(alienvault).toMatchObject({ result: [{ url: "https://example.com/a" }] });

@@ -34,7 +34,14 @@ describe("registry", () => {
   it("registers every built-in source exactly once", () => {
     const names = providers();
 
-    expect(names).toEqual(["alienvault", "commoncrawl", "urlscan", "virustotal", "wayback"]);
+    expect(names).toEqual([
+      "alienvault",
+      "arquivo",
+      "commoncrawl",
+      "urlscan",
+      "virustotal",
+      "wayback",
+    ]);
     expect(new Set(names).size).toBe(names.length);
   });
 

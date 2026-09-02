@@ -8,8 +8,8 @@ index the web, with no active scanning.
 
 URLFinder from ProjectDiscovery shows how useful this is in practice - point it at a domain and
 it returns the URLs that Wayback, AlienVault OTX, Common Crawl, URLScan, and VirusTotal have seen
-for it. `@agntn/urls` is the TypeScript version of that idea: five sources, one `discover()`
-call, deduplicated and scoped to the domain you asked about.
+for it. `@agntn/urls` is the TypeScript version of that idea, plus Arquivo.pt: six sources, one
+`discover()` call, deduplicated and scoped to the URLs you asked about.
 
 ## Install into agent hosts
 
@@ -77,6 +77,7 @@ Every result is a `DiscoveredUrl`:
 | Key           | Key required | Default endpoint                    |
 | ------------- | ------------ | ----------------------------------- |
 | `alienvault`  | no           | `https://otx.alienvault.com`        |
+| `arquivo`     | no           | `https://arquivo.pt`                |
 | `commoncrawl` | no           | `https://index.commoncrawl.org`     |
 | `urlscan`     | optional     | `https://urlscan.io/api/v1/search/` |
 | `virustotal`  | yes          | `https://www.virustotal.com/api/v3` |
