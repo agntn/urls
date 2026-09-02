@@ -50,7 +50,8 @@ export async function getJSON<T>(url: string, options?: ClientOptions): Promise<
  *
  * CDX dumps can reach tens of megabytes; `ofetch` would consume the whole body before
  * returning, so this helper uses plain `fetch` and classifies the status before reading any
- * body bytes. Callers break early (once a limit is hit) and the reader is cancelled.
+ * body bytes. Callers break early (once a limit is hit) and the reader is cancelled. Requests
+ * carry a 60-second default timeout, composed with the caller's own signal when one is given.
  *
  * @param url Request URL.
  * @param options Request metadata.
@@ -81,7 +82,7 @@ async function fetchText(url: string, options?: ClientOptions): Promise<Response
         "User-Agent": USER_AGENT,
         ...options?.headers,
       },
-      signal: options?.signal,
+      signal: combinedSignal(options),
       redirect: "follow",
     });
   } catch (error) {
@@ -94,6 +95,17 @@ async function fetchText(url: string, options?: ClientOptions): Promise<Response
     throw normalizeError(new Error(`HTTP ${response.status} from ${url}`), options?.provider, url);
   }
   return response;
+}
+
+/**
+ * Compose a caller signal with a 60-second timeout for streaming requests.
+ *
+ * @param options Request metadata.
+ * @returns {AbortSignal} A signal that aborts on timeout or on the caller's cancellation.
+ */
+function combinedSignal(options?: ClientOptions): AbortSignal {
+  const timeout = AbortSignal.timeout(options?.timeout ?? 60_000);
+  return options?.signal ? AbortSignal.any([options.signal, timeout]) : timeout;
 }
 
 /**

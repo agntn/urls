@@ -50,24 +50,46 @@ export function extractUrls(text: string): string[] {
  * Reduce a bare domain or a full URL to its lowercase hostname.
  *
  * `https://User@www.example.com:8080/path` becomes `www.example.com`; `example.com` stays
- * `example.com`. Non-parseable input is returned trimmed and lowercased.
+ * `example.com`; `www.example.com/path` becomes `www.example.com`. Input that cannot be
+ * parsed as a hostname or URL resolves to an empty string.
  *
  * @param input Bare domain or full URL.
- * @returns {string} The lowercase hostname.
+ * @returns {string} The lowercase hostname, or empty when the input is not a host.
  */
 export function normalizeHost(input: string): string {
   const trimmed = input.trim();
   if (!trimmed) return "";
-  if (!/^[a-z0-9][a-z0-9-.]*$/i.test(trimmed) || trimmed.includes("://")) {
-    try {
-      return new URL(
-        trimmed.includes("://") ? trimmed : `https://${trimmed}`,
-      ).hostname.toLowerCase();
-    } catch {
-      // fall through to the raw trim below
-    }
+  if (/^[a-z0-9][a-z0-9-.]*$/i.test(trimmed) && !trimmed.includes("://")) {
+    return trimmed.toLowerCase();
   }
-  return trimmed.toLowerCase();
+  try {
+    return new URL(trimmed.includes("://") ? trimmed : `https://${trimmed}`).hostname.toLowerCase();
+  } catch {
+    // Not a hostname and not a parseable URL: no usable host.
+    return "";
+  }
+}
+
+/**
+ * Normalize the caller's domain into the hostname used for provider requests.
+ *
+ * Sources interpolate the target into request paths and queries, so only a derived hostname may
+ * reach them: a bare domain passes through, a full URL is reduced to its host, and anything
+ * unparseable is rejected before any request is sent.
+ *
+ * @param domain Bare domain or full URL.
+ * @param provider Registry key for the error context.
+ * @returns {string} The hostname to use in requests.
+ *
+ * @throws {InvalidInputError} When the domain is empty or no hostname can be derived.
+ */
+export function resolveDomain(domain: string, provider: string): string {
+  assertDomain(domain, provider);
+  const host = normalizeHost(domain);
+  if (!host) {
+    throw new InvalidInputError(`invalid domain: ${JSON.stringify(domain)}`, provider);
+  }
+  return host;
 }
 
 /**

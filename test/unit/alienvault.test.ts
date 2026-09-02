@@ -104,6 +104,25 @@ describe("alienvault provider", () => {
     ]);
   });
 
+  it("normalizes a full URL input to its host for the request", async () => {
+    const fetch = stubJSON({ has_next: false, url_list: [] });
+
+    await create("alienvault").discover("https://user@www.example.com:8080/docs?q=1");
+
+    const requestUrl = String(fetch.mock.calls[0]?.[0] as string);
+    expect(requestUrl).toContain("/domain/www.example.com/url_list");
+    expect(requestUrl).not.toContain("8080");
+  });
+
+  it("rejects an unparseable domain without sending a request", async () => {
+    const fetch = stubJSON({ has_next: false, url_list: [] });
+
+    await expect(create("alienvault").discover("foo bar")).rejects.toMatchObject({
+      name: "InvalidInputError",
+    });
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
   it("rejects an empty domain without any request", async () => {
     const fetch = stubJSON(PAGE_ONE);
 

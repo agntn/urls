@@ -111,7 +111,9 @@ export default function urlsExtension(pi: ExtensionAPI): void {
     title: string,
     description: string,
     options: RenderCallOptions,
-    // The theme is the host's TUI render theme; its shape is owned by the host, not this repo.
+    // RenderTheme is an alias over `Parameters<typeof renderStatusLine>[1]`, which resolves
+    // structurally and never matches the allow list by name. A/B verified 2026-09-02: the
+    // comment is required, the rule is red without it.
     // oxlint-disable-next-line typescript/prefer-readonly-parameter-types
     theme: RenderTheme,
   ): Text {

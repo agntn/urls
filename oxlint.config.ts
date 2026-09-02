@@ -57,7 +57,7 @@ export default defineConfig({
           { from: "lib", name: ["AbortSignal", "ReadonlyMap", "Headers", "ReadableStream"] },
           {
             from: "package",
-            name: ["ExtensionAPI", "ToolDefinition", "RenderTheme"],
+            name: ["ExtensionAPI", "ToolDefinition"],
             package: "@oh-my-pi/pi-coding-agent",
           },
           { from: "package", package: "ofetch", name: ["FetchError"] },

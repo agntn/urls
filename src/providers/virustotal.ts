@@ -17,7 +17,7 @@ import type {
   ProviderConfig,
 } from "../core/types.ts";
 import { Provider } from "../core/provider.ts";
-import { UrlCollector, assertDomain, extractUrls } from "../core/url.ts";
+import { UrlCollector, extractUrls, resolveDomain } from "../core/url.ts";
 import { AuthError } from "../core/errors.ts";
 import { register } from "../core/registry.ts";
 
@@ -82,12 +82,12 @@ class VirusTotal extends Provider {
   }
 
   async discover(domain: string, options?: DiscoverOptions): Promise<DiscoveredUrl[]> {
-    assertDomain(domain, "virustotal");
+    const target = resolveDomain(domain, "virustotal");
     const collector = new UrlCollector(options, domain);
 
     let next: string | undefined;
     for (let page = 0; page < MAX_PAGES && !collector.done; page++) {
-      const apiURL = next ?? `${this.baseUrl}/domains/${domain}/urls`;
+      const apiURL = next ?? `${this.baseUrl}/domains/${target}/urls`;
       const data = await this.getJSON<VtResponse>(apiURL, { headers: this.headers });
       next = collectPage(data, collector, this.name, apiURL);
       if (!next) break;

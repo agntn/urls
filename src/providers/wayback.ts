@@ -20,7 +20,7 @@ import type {
 } from "../core/types.ts";
 import { Provider } from "../core/provider.ts";
 import { buildQuery } from "../core/client.ts";
-import { UrlCollector, assertDomain, extractUrls } from "../core/url.ts";
+import { UrlCollector, extractUrls, resolveDomain } from "../core/url.ts";
 import { register } from "../core/registry.ts";
 
 class Wayback extends Provider {
@@ -38,11 +38,11 @@ class Wayback extends Provider {
   }
 
   async discover(domain: string, options?: DiscoverOptions): Promise<DiscoveredUrl[]> {
-    assertDomain(domain, "wayback");
+    const target = resolveDomain(domain, "wayback");
     const collector = new UrlCollector(options, domain);
 
     const apiURL = `${this.baseUrl}/cdx/search/cdx${buildQuery({
-      url: `${domain}/*`,
+      url: `${target}/*`,
       output: "txt",
       fl: "original",
     })}`;

@@ -19,7 +19,7 @@ import type {
   ProviderConfig,
 } from "../core/types.ts";
 import { Provider } from "../core/provider.ts";
-import { UrlCollector, assertDomain, extractUrls } from "../core/url.ts";
+import { UrlCollector, extractUrls, resolveDomain } from "../core/url.ts";
 import { getTextLines } from "../core/client.ts";
 import { register } from "../core/registry.ts";
 
@@ -109,7 +109,7 @@ class CommonCrawl extends Provider {
   }
 
   async discover(domain: string, options?: DiscoverOptions): Promise<DiscoveredUrl[]> {
-    assertDomain(domain, "commoncrawl");
+    const target = resolveDomain(domain, "commoncrawl");
     const collector = new UrlCollector(options, domain);
 
     const indexes = await this.getJSON<CommonCrawlIndex[]>(`${this.baseUrl}/collinfo.json`);
@@ -120,7 +120,7 @@ class CommonCrawl extends Provider {
       const cdxApi = byYear.get(candidate);
       if (isYearDone(cdxApi, collector, options?.signal)) break;
       try {
-        await queryIndex(cdxApi, domain, collector, this.name);
+        await queryIndex(cdxApi, target, collector, this.name);
       } catch (error) {
         // One bad index should not discard the others; an aborted caller still re-raises.
         if (isAborted(options?.signal)) throw error;

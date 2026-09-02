@@ -15,7 +15,7 @@ import type {
 } from "../core/types.ts";
 import { Provider } from "../core/provider.ts";
 import { buildQuery } from "../core/client.ts";
-import { UrlCollector, assertDomain, extractUrls } from "../core/url.ts";
+import { UrlCollector, extractUrls, resolveDomain } from "../core/url.ts";
 import { register } from "../core/registry.ts";
 
 /** Bounded pagination safeguard for a backend that can say `has_next` forever. */
@@ -41,11 +41,11 @@ class AlienVault extends Provider {
   }
 
   async discover(domain: string, options?: DiscoverOptions): Promise<DiscoveredUrl[]> {
-    assertDomain(domain, "alienvault");
+    const target = resolveDomain(domain, "alienvault");
     const collector = new UrlCollector(options, domain);
 
     for (let page = 1; page <= MAX_PAGES && !collector.done; page++) {
-      const apiURL = `${this.baseUrl}/api/v1/indicators/domain/${domain}/url_list${buildQuery({ page })}`;
+      const apiURL = `${this.baseUrl}/api/v1/indicators/domain/${target}/url_list${buildQuery({ page })}`;
       const data = await this.getJSON<AlienVaultPage>(apiURL);
       for (const record of data.url_list ?? []) {
         for (const extracted of extractUrls(record.url ?? "")) {

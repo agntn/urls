@@ -94,6 +94,10 @@ urls providers
   is the input domain or one of its subdomains; `www.example.com` belongs to `example.com`, while
   `example.com.evil.test` does not.
 
+The input accepts a bare domain or a full URL; every source request is built from the derived
+hostname (`https://user@www.example.com:8080/docs` runs the enumeration for
+`www.example.com`), and input no hostname can be derived from is rejected before any request.
+
 ## Library API
 
 ```ts

@@ -55,7 +55,10 @@ test/eval-cli.mjs etc.     - packaged/CLI/MCP subprocess gates
 - All interface fields are `readonly`; function params keep named library types (the repo-local
   allow list covers the internal ones).
 - Streams: CDX-style dumps go through `getTextLines` (plain fetch, status classified before body
-  read, early break cancels the reader). `ofetch` cannot stream without consuming.
+  read, early break cancels the reader, 60s default timeout). `ofetch` cannot stream without
+  consuming.
+- Domain input: every source request is built from `resolveDomain()`, the derived hostname of a
+  bare domain or full URL; unparseable input is rejected before I/O.
 
 ## API audit (2026-09-02)
 

@@ -15,7 +15,7 @@ import type {
   ProviderConfig,
 } from "../core/types.ts";
 import { Provider } from "../core/provider.ts";
-import { UrlCollector, assertDomain, extractUrls } from "../core/url.ts";
+import { UrlCollector, extractUrls, resolveDomain } from "../core/url.ts";
 import { UrlsError } from "../core/errors.ts";
 import { register } from "../core/registry.ts";
 
@@ -119,7 +119,7 @@ class UrlScan extends Provider {
   }
 
   async discover(domain: string, options?: DiscoverOptions): Promise<DiscoveredUrl[]> {
-    assertDomain(domain, "urlscan");
+    const target = resolveDomain(domain, "urlscan");
     const collector = new UrlCollector(options, domain);
     const headers: Record<string, string> | undefined = this.apiKey
       ? { "API-Key": this.apiKey }
@@ -128,7 +128,7 @@ class UrlScan extends Provider {
     let searchAfter: string | undefined;
     for (let page = 0; page < MAX_PAGES && !collector.done; page++) {
       const apiURL = new URL(this.baseUrl);
-      apiURL.searchParams.set("q", `domain:${domain}`);
+      apiURL.searchParams.set("q", `domain:${target}`);
       apiURL.searchParams.set("size", "10000");
       if (searchAfter) apiURL.searchParams.set("search_after", searchAfter);
 

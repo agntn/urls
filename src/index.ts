@@ -9,7 +9,7 @@ export type {
   ProviderConfig,
 } from "./core/types.ts";
 export { clampMaxResults } from "./core/types.ts";
-export { extractUrls, inScope, normalizeHost, UrlCollector } from "./core/url.ts";
+export { extractUrls, inScope, normalizeHost, resolveDomain, UrlCollector } from "./core/url.ts";
 export { Provider, requireOperation } from "./core/provider.ts";
 export type { ProviderConstructor, ProviderOperation } from "./core/provider.ts";
 export {

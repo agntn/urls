@@ -24,4 +24,4 @@ jobs:
 
       - uses: autofix-ci/action@v1
         with:
-          command: pnpm lint:fix
+          command: pnpm fmt

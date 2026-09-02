@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { extractUrls, inScope, normalizeHost, UrlCollector } from "../../src/core/url.ts";
+import {
+  UrlCollector,
+  extractUrls,
+  inScope,
+  normalizeHost,
+  resolveDomain,
+} from "../../src/core/url.ts";
 
 describe("extractUrls", () => {
   it("finds full URLs in prose", () => {
@@ -45,6 +51,29 @@ describe("normalizeHost", () => {
 
   it("returns empty for empty input", () => {
     expect(normalizeHost("  ")).toBe("");
+  });
+
+  it("returns empty for input URL parsing rejects", () => {
+    // WHATWG treats "!!!" as an opaque reg-name host, so it survives; a space cannot parse.
+    expect(normalizeHost("foo bar")).toBe("");
+  });
+
+  it("strips path and userinfo while normalizing", () => {
+    expect(normalizeHost("HTTPS://User@www.example.com:8080/a?q=1")).toBe("www.example.com");
+  });
+});
+
+describe("resolveDomain", () => {
+  it("passes a bare domain through and reduces a full URL to its host", () => {
+    expect(resolveDomain("Example.COM", "alienvault")).toBe("example.com");
+    expect(resolveDomain("https://user@www.example.com:8080/x", "alienvault")).toBe(
+      "www.example.com",
+    );
+  });
+
+  it("rejects empty and unparseable input before any request", () => {
+    expect(() => resolveDomain("   ", "alienvault")).toThrow(/domain is empty/);
+    expect(() => resolveDomain("foo bar", "alienvault")).toThrow(/invalid domain/);
   });
 });
 
