@@ -80,6 +80,30 @@ describe("virustotal provider", () => {
     expect(second).toBe("https://www.virustotal.com/api/v3/domains/example.com/urls?cursor=abc");
   });
 
+  it("does not follow an off-origin links.next with the API key", async () => {
+    const fetch = vi.fn(
+      async () =>
+        new Response(
+          JSON.stringify({
+            data: [{ attributes: { url: "https://example.com/report" } }],
+            links: { next: "https://evil.test/steal" },
+          }),
+          { status: 200, headers: { "Content-Type": "application/json" } },
+        ),
+    );
+    vi.stubGlobal("fetch", fetch);
+
+    const urls = await (
+      await create("virustotal", { apiKey: "secret-key" })
+    ).discover("example.com");
+
+    expect(urls.map((url) => url.url)).toEqual(["https://example.com/report"]);
+    expect(fetch).toHaveBeenCalledTimes(1);
+    expect(String(fetch.mock.calls[0]?.[0])).toBe(
+      "https://www.virustotal.com/api/v3/domains/example.com/urls",
+    );
+  });
+
   it("sends the key in the x-apikey header, not the URL", async () => {
     const fetch = stubJSON({ data: [], links: {} });
 

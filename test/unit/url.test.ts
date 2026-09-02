@@ -75,6 +75,16 @@ describe("resolveDomain", () => {
     expect(() => resolveDomain("   ", "alienvault")).toThrow(/domain is empty/);
     expect(() => resolveDomain("foo bar", "alienvault")).toThrow(/invalid domain/);
   });
+
+  it("rejects hosts that would traverse a request path", () => {
+    expect(() => resolveDomain("..", "alienvault")).toThrow(/invalid domain/);
+    expect(() => resolveDomain(".", "alienvault")).toThrow(/invalid domain/);
+    expect(() => resolveDomain("foo..bar.com", "alienvault")).toThrow(/invalid domain/);
+  });
+
+  it("strips a trailing FQDN dot so the path stays on the domain endpoint", () => {
+    expect(resolveDomain("example.com.", "alienvault")).toBe("example.com");
+  });
 });
 
 describe("inScope", () => {

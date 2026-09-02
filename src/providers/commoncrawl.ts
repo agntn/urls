@@ -20,7 +20,6 @@ import type {
 } from "../core/types.ts";
 import { Provider } from "../core/provider.ts";
 import { UrlCollector, extractUrls, resolveDomain } from "../core/url.ts";
-import { getTextLines } from "../core/client.ts";
 
 /** Number of calendar years covered, newest first. */
 const MAX_YEARS_BACK = 5;
@@ -64,35 +63,6 @@ function mapIndexesPerYear(
   return byYear;
 }
 
-/**
- * Query one CDX index for `*.domain` and feed the discovered URLs to the collector.
- *
- * @param cdxApi CDX endpoint of one index.
- * @param domain Target domain.
- * @param collector Shared per-call URL collector.
- * @param source Registry key reporting the URLs.
- */
-async function queryIndex(
-  cdxApi: string,
-  domain: string,
-  collector: UrlCollector,
-  source: string,
-): Promise<void> {
-  const apiURL = new URL(cdxApi);
-  apiURL.searchParams.set("url", `*.${domain}`);
-  apiURL.searchParams.set("output", "text");
-  apiURL.searchParams.set("fl", "url");
-
-  const text = getTextLines(apiURL.toString(), { provider: source });
-  for await (const line of text) {
-    if (collector.done) break;
-    if (!line.trim()) continue;
-    for (const extracted of extractUrls(line)) {
-      collector.push(source, extracted, apiURL.toString());
-    }
-  }
-}
-
 export class CommonCrawl extends Provider {
   static readonly key = "commoncrawl";
 
@@ -119,7 +89,7 @@ export class CommonCrawl extends Provider {
       const cdxApi = byYear.get(candidate);
       if (isYearDone(cdxApi, collector, options?.signal)) break;
       try {
-        await queryIndex(cdxApi, target, collector, this.name);
+        await this.queryIndex(cdxApi, target, collector);
       } catch (error) {
         // One bad index should not discard the others; an aborted caller still re-raises.
         if (isAborted(options?.signal)) throw error;
@@ -127,6 +97,31 @@ export class CommonCrawl extends Provider {
     }
 
     return collector.results;
+  }
+
+  /**
+   * Query one CDX index for `*.domain` and feed the discovered URLs to the collector.
+   *
+   * Goes through `this.getTextLines` so the instance timeout applies; calling the bare client
+   * helper would ignore `config.timeout` on the heavy path.
+   *
+   * @param cdxApi CDX endpoint of one index.
+   * @param domain Target domain.
+   * @param collector Shared per-call URL collector.
+   */
+  private async queryIndex(cdxApi: string, domain: string, collector: UrlCollector): Promise<void> {
+    const apiURL = new URL(cdxApi);
+    apiURL.searchParams.set("url", `*.${domain}`);
+    apiURL.searchParams.set("output", "text");
+    apiURL.searchParams.set("fl", "url");
+
+    for await (const line of this.getTextLines(apiURL.toString())) {
+      if (collector.done) break;
+      if (!line.trim()) continue;
+      for (const extracted of extractUrls(line)) {
+        collector.push(this.name, extracted, apiURL.toString());
+      }
+    }
   }
 }
 

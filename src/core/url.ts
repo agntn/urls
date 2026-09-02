@@ -85,11 +85,29 @@ export function normalizeHost(input: string): string {
  */
 export function resolveDomain(domain: string, provider: string): string {
   assertDomain(domain, provider);
-  const host = normalizeHost(domain);
+  const host = canonicalHost(normalizeHost(domain));
   if (!host) {
     throw new InvalidInputError(`invalid domain: ${JSON.stringify(domain)}`, provider);
   }
   return host;
+}
+
+/**
+ * Keep a hostname only when interpolating it into a request path cannot traverse.
+ *
+ * WHATWG accepts `.` and `..` as hosts; those collapse `/domain/../` on AlienVault and
+ * VirusTotal into a different API path. Empty labels (`foo..bar.com`) are not DNS hosts.
+ * A trailing FQDN dot is stripped so `example.com.` and `example.com` hit the same endpoint.
+ *
+ * @param host Hostname from `normalizeHost`.
+ * @returns {string} A host safe to interpolate, or empty when it is not usable.
+ */
+function canonicalHost(host: string): string {
+  if (!host) return "";
+  if (host.startsWith("[") && host.endsWith("]")) return host.length > 2 ? host : "";
+  const trimmed = host.replace(/\.+$/u, "");
+  if (!trimmed || trimmed.split(".").some((label) => label.length === 0)) return "";
+  return trimmed;
 }
 
 /**
