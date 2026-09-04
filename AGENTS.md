@@ -85,7 +85,7 @@ test/eval-cli.mjs etc.     - packaged/CLI/MCP subprocess gates
 | urlscan     | live         | answers without key at small volumes; cursor pagination via `search_after`                                                      |
 | vefsafn     | live         | `vefsafn.is/cdx` NDJSON `matchType=domain`; `output=txt` rejected; `limit` ignored; snapshot bodies stay in archives            |
 | virustotal  | live (v3)    | legacy `vtapi/v2` answers 403 HTML (dead); v3 `domains/{d}/urls` with `x-apikey`                                                |
-| commoncrawl | blocked here | `index.commoncrawl.org` refused from this network; keep, tests mock HTTP                                                        |
+| commoncrawl | blocked here | `index.commoncrawl.org` refused here; tests mock HTTP; CDX URLs stay on configured origin                                       |
 
 ## Status
 

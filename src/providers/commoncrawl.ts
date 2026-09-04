@@ -19,7 +19,7 @@ import type {
   ProviderConfig,
 } from "../core/types.ts";
 import { Provider } from "../core/provider.ts";
-import { UrlCollector, extractUrls, resolveDomain } from "../core/url.ts";
+import { UrlCollector, extractUrls, resolveDomain, sameOriginHttpUrl } from "../core/url.ts";
 import { parseCdxTextLine } from "../core/url-shape.ts";
 
 /** Number of calendar years covered, newest first. */
@@ -45,16 +45,18 @@ function recentYears(): string[] {
  *
  * @param indexes Indexes from `collinfo.json`.
  * @param years Calendar years to cover.
+ * @param baseUrl Configured index server used as the allowed origin.
  * @returns {Map<string, string>} Map of year to CDX API URL.
  */
 function mapIndexesPerYear(
   indexes: readonly CommonCrawlIndex[],
   years: readonly string[],
+  baseUrl: string,
 ): Map<string, string> {
   const byYear = new Map<string, string>();
   for (const candidate of years) {
     for (const index of indexes) {
-      const api = index["cdx-api"];
+      const api = sameOriginHttpUrl(index["cdx-api"], baseUrl);
       if (api && index.id?.includes(candidate) && !byYear.has(candidate)) {
         byYear.set(candidate, api);
         break;
@@ -84,11 +86,12 @@ export class CommonCrawl extends Provider {
 
     const indexes = await this.getJSON<CommonCrawlIndex[]>(`${this.baseUrl}/collinfo.json`);
     const years = recentYears();
-    const byYear = mapIndexesPerYear(indexes ?? [], years);
+    const byYear = mapIndexesPerYear(indexes ?? [], years, this.baseUrl);
 
     for (const candidate of years) {
+      if (shouldStop(collector, options?.signal)) break;
       const cdxApi = byYear.get(candidate);
-      if (isYearDone(cdxApi, collector, options?.signal)) break;
+      if (!cdxApi) continue;
       try {
         await this.queryIndex(cdxApi, target, collector);
       } catch (error) {
@@ -128,21 +131,14 @@ export class CommonCrawl extends Provider {
 }
 
 /**
- * Check whether the caller asks to stop or the year has no endpoint.
+ * Check whether the collector is full or the caller aborted.
  *
- * A type predicate lets the caller narrow `cdxApi` to a real endpoint after the guard.
- *
- * @param cdxApi CDX endpoint of the year, when mapped.
  * @param collector Shared per-call URL collector.
  * @param signal Abort signal, when provided.
- * @returns {boolean} True when the loop should stop before this year.
+ * @returns {boolean} True when discovery should stop.
  */
-function isYearDone(
-  cdxApi: string | undefined,
-  collector: UrlCollector,
-  signal: AbortSignal | undefined,
-): cdxApi is undefined {
-  return !cdxApi || collector.done || isAborted(signal);
+function shouldStop(collector: UrlCollector, signal: AbortSignal | undefined): boolean {
+  return collector.done || isAborted(signal);
 }
 
 /**

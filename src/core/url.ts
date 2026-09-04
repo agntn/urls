@@ -82,6 +82,29 @@ export function normalizeHost(input: string): string {
 }
 
 /**
+ * Resolve an untrusted URL only when its destination stays on the configured HTTP origin.
+ *
+ * @param candidate URL returned by a provider.
+ * @param baseUrl Configured provider endpoint.
+ * @returns {string | undefined} The resolved URL when its origin matches.
+ */
+export function sameOriginHttpUrl(
+  candidate: string | undefined,
+  baseUrl: string,
+): string | undefined {
+  if (!candidate) return undefined;
+  try {
+    const resolved = new URL(candidate, baseUrl);
+    const base = new URL(baseUrl);
+    if (resolved.protocol !== "https:" && resolved.protocol !== "http:") return undefined;
+    if (resolved.origin !== base.origin) return undefined;
+    return resolved.toString();
+  } catch {
+    return undefined;
+  }
+}
+
+/**
  * Normalize the caller's domain into the hostname used for provider requests.
  *
  * Sources interpolate the target into request paths and queries, so only a derived hostname may
