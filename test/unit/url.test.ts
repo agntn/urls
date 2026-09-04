@@ -258,4 +258,10 @@ describe("UrlCollector", () => {
       true,
     );
   });
+
+  it("rejects an invalid seen-at bound instead of disabling the filter", () => {
+    expect(() => new UrlCollector({ from: "not 2020" }, "example.com")).toThrow(
+      'invalid from bound: "not 2020"',
+    );
+  });
 });

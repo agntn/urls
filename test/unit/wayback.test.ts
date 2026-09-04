@@ -71,4 +71,13 @@ describe("wayback provider", () => {
     });
     expect(fetch).not.toHaveBeenCalled();
   });
+
+  it("rejects an invalid time bound without any request", async () => {
+    const fetch = stubText("");
+
+    await expect(
+      (await create("wayback")).discover("example.com", { from: "not 2020" }),
+    ).rejects.toMatchObject({ name: "InvalidInputError" });
+    expect(fetch).not.toHaveBeenCalled();
+  });
 });

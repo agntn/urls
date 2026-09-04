@@ -23,6 +23,15 @@ const TRACKING_QUERY_KEYS = new Set([
   "yclid",
 ]);
 
+/** Pure archive digit bounds stay lexical so partial periods can use sentinel padding. */
+const ARCHIVE_BOUND_PATTERN = /^\d{4,14}$/u;
+
+/** ISO dates keep a strict calendar prefix before runtime parsing. */
+const ISO_BOUND_PATTERN = /^(\d{4}-\d{2}-\d{2})(?:T.*)?$/iu;
+
+/** Explicit ISO zone suffix, distinguishing times with a zone from unzoned times. */
+const ISO_ZONE_PATTERN = /(?:Z|[+-]\d{2}:?\d{2})$/iu;
+
 /**
  * Canonical form used as the collector dedup key.
  *
@@ -144,15 +153,32 @@ export function archiveStampToIso(stamp: string): string | undefined {
  */
 export function parseTimeBound(value: string, edge: "from" | "to"): string | undefined {
   const trimmed = value.trim();
-  if (!trimmed) return undefined;
-  const digits = trimmed.replaceAll(/\D/g, "");
-  if (digits.length >= 4 && /^\d+$/.test(digits)) {
-    return digits.padEnd(14, edge === "from" ? "0" : "9").slice(0, 14);
+  if (ARCHIVE_BOUND_PATTERN.test(trimmed)) {
+    return trimmed.padEnd(14, edge === "from" ? "0" : "9");
   }
-  const ms = Date.parse(trimmed);
+  return parseIsoTimeBound(trimmed);
+}
+
+/**
+ * Parse one ISO bound and normalize its offset to UTC.
+ *
+ * @param value Candidate ISO date or instant.
+ * @returns {string | undefined} UTC archive stamp, or undefined when invalid.
+ */
+function parseIsoTimeBound(value: string): string | undefined {
+  const datePart = value.match(ISO_BOUND_PATTERN)?.[1];
+  if (!datePart) return undefined;
+  const midnight = Date.parse(`${datePart}T00:00:00Z`);
+  if (Number.isNaN(midnight) || new Date(midnight).toISOString().slice(0, 10) !== datePart) {
+    return undefined;
+  }
+  const normalized =
+    value.length > datePart.length && !ISO_ZONE_PATTERN.test(value) ? `${value}Z` : value;
+  const ms = Date.parse(normalized);
   if (Number.isNaN(ms)) return undefined;
-  const iso = new Date(ms).toISOString().replaceAll(/\D/g, "").slice(0, 14);
-  return iso;
+  const iso = new Date(ms).toISOString();
+  if (!/^\d{4}-/u.test(iso)) return undefined;
+  return iso.replaceAll(/\D/g, "").slice(0, 14);
 }
 
 /**

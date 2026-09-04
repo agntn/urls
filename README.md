@@ -137,8 +137,9 @@ urls providers
 - `ext` - keep URLs whose path ends with one of these extensions (`js`, `json`, `bak`).
 - `hasQuery` - keep only URLs that still have query keys after tracking keys (`utm_*`, `gclid`,
   `fbclid`, ...) are dropped.
-- `from` / `to` - inclusive seen-at window as archive digits (`2019`) or an ISO date. Sources
-  that do not report a timestamp are not dropped. CDX sources fill `firstSeen` / `lastSeen`.
+- `from` / `to` - inclusive seen-at window as archive digits (`2019`) or an ISO date. ISO
+  offsets are normalized to UTC, and invalid bounds are rejected before a request. Sources that
+  do not report a timestamp are not dropped. CDX sources fill `firstSeen` / `lastSeen`.
 - Dedup is on the normalized URL (fragment stripped, tracking query dropped, remaining query
   sorted, trailing slash removed). The stored `url` is the first original form.
 

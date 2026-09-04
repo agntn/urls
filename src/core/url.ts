@@ -315,10 +315,25 @@ function collectorRules(options: DiscoverOptions | undefined): CollectorRules {
     urlOutScope: options.urlOutScope,
     ext: lowercaseAll(options.ext),
     hasQuery: options.hasQuery,
-    from: options.from === undefined ? undefined : parseTimeBound(options.from, "from"),
-    to: options.to === undefined ? undefined : parseTimeBound(options.to, "to"),
+    from: collectorTimeBound(options.from, "from"),
+    to: collectorTimeBound(options.to, "to"),
     limit: clampOptionalLimit(options.limit),
   };
+}
+
+/**
+ * Parse a supplied time bound or reject it before provider I/O.
+ *
+ * @param value Caller time bound.
+ * @param edge Start or end of the window.
+ * @returns {string | undefined} Comparable archive stamp, or undefined when absent.
+ * @throws {InvalidInputError} When a supplied bound is invalid.
+ */
+function collectorTimeBound(value: string | undefined, edge: "from" | "to"): string | undefined {
+  if (value === undefined) return undefined;
+  const bound = parseTimeBound(value, edge);
+  if (!bound) throw new InvalidInputError(`invalid ${edge} bound: ${JSON.stringify(value)}`);
+  return bound;
 }
 
 /**
