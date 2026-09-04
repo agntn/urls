@@ -49,9 +49,9 @@ export interface DiscoverOptions {
   readonly ext?: readonly string[];
   /** When true, keep only URLs that still have query keys after tracking keys are dropped */
   readonly hasQuery?: boolean;
-  /** Inclusive start of the seen-at window (archive digits or ISO date) */
+  /** Inclusive seen-at lower bound (archive digits or ISO date). Invalid values are rejected. */
   readonly from?: string;
-  /** Inclusive end of the seen-at window (archive digits or ISO date) */
+  /** Inclusive seen-at upper bound (archive digits or ISO date). Invalid values are rejected. */
   readonly to?: string;
   /** Abort signal forwarded to in-flight requests */
   readonly signal?: AbortSignal;

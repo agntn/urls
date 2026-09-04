@@ -51,6 +51,16 @@ describe("archive timestamps", () => {
     expect(parseTimeBound("2019", "from")).toBe("20190000000000");
     expect(parseTimeBound("2019", "to")).toBe("20199999999999");
   });
+
+  it("normalizes ISO times to UTC before comparing timestamps", () => {
+    expect(parseTimeBound("2020-01-01T00:00:00+02:00", "from")).toBe("20191231220000");
+    expect(parseTimeBound("2020-01-01T00:00:00", "from")).toBe("20200101000000");
+  });
+
+  it("rejects text containing a year and impossible ISO calendar dates", () => {
+    expect(parseTimeBound("not 2020", "from")).toBeUndefined();
+    expect(parseTimeBound("2021-02-29", "from")).toBeUndefined();
+  });
 });
 
 describe("CDX line parsers", () => {
