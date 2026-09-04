@@ -1,11 +1,10 @@
-name: Autofix
+name: autofix.ci
 
 on:
   pull_request:
 
 permissions:
-  contents: write
-  pull-requests: write
+  contents: read
 
 jobs:
   autofix:
@@ -22,6 +21,9 @@ jobs:
 
       - run: pnpm i --frozen-lockfile
 
+      - name: Fix lint issues
+        run: pnpm fmt
+
       - uses: autofix-ci/action@v1
         with:
-          command: pnpm fmt
+          commit-message: "chore: apply automated updates"

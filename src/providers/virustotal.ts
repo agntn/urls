@@ -17,7 +17,7 @@ import type {
   ProviderConfig,
 } from "../core/types.ts";
 import { Provider } from "../core/provider.ts";
-import { UrlCollector, extractUrls, resolveDomain } from "../core/url.ts";
+import { UrlCollector, extractUrls, resolveDomain, sameOriginHttpUrl } from "../core/url.ts";
 import { AuthError } from "../core/errors.ts";
 
 /** Bounded pagination safeguard for a backend cursor that could run long. */
@@ -58,29 +58,6 @@ function collectPage(
   return data?.links?.next;
 }
 
-/**
- * Follow a pagination cursor only when it stays on the same origin as `baseUrl`.
- *
- * `links.next` is untrusted JSON; fetching it with `x-apikey` would otherwise send the
- * credential to whatever host the page named.
- *
- * @param next Candidate next-page URL from the response.
- * @param baseUrl Provider base URL whose origin is trusted.
- * @returns {string | undefined} The next URL when it is same-origin http(s), otherwise undefined.
- */
-function sameOriginNext(next: string | undefined, baseUrl: string): string | undefined {
-  if (!next) return undefined;
-  try {
-    const resolved = new URL(next, baseUrl);
-    const base = new URL(baseUrl);
-    if (resolved.protocol !== "https:" && resolved.protocol !== "http:") return undefined;
-    if (resolved.origin !== base.origin) return undefined;
-    return resolved.toString();
-  } catch {
-    return undefined;
-  }
-}
-
 export class VirusTotal extends Provider {
   static readonly key = "virustotal";
 
@@ -111,7 +88,7 @@ export class VirusTotal extends Provider {
     for (let page = 0; page < MAX_PAGES && !collector.done; page++) {
       const apiURL = next ?? `${this.baseUrl}/domains/${target}/urls`;
       const data = await this.getJSON<VtResponse>(apiURL, { headers: this.headers });
-      next = sameOriginNext(collectPage(data, collector, this.name, apiURL), this.baseUrl);
+      next = sameOriginHttpUrl(collectPage(data, collector, this.name, apiURL), this.baseUrl);
       if (!next) break;
     }
 

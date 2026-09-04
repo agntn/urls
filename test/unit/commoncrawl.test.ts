@@ -80,6 +80,40 @@ describe("commoncrawl provider", () => {
     expect(requests.filter((url) => url.includes("index?url="))).toHaveLength(3); // one per year
   });
 
+  it("ignores off-origin metadata without dropping trusted indexes", async () => {
+    const year = new Date().getFullYear();
+    const fetch = vi.fn(async (input: string) => {
+      const url = String(input);
+      if (url.includes("collinfo.json")) {
+        return new Response(
+          JSON.stringify([
+            {
+              id: `CC-MAIN-${year}-01`,
+              "cdx-api": "https://other.example/foreign-index",
+            },
+            {
+              id: `CC-MAIN-${year - 1}-01`,
+              "cdx-api": `https://trusted.example/CC-MAIN-${year - 1}-01-index`,
+            },
+          ]),
+          { status: 200, headers: { "Content-Type": "application/json" } },
+        );
+      }
+      return new Response("https://example.com/archive\n", { status: 200 });
+    });
+    vi.stubGlobal("fetch", fetch);
+
+    const urls = await (
+      await create("commoncrawl", { baseUrl: "https://trusted.example" })
+    ).discover("example.com");
+
+    expect(fetch.mock.calls.map((call) => String(call[0]))).toEqual([
+      "https://trusted.example/collinfo.json",
+      `https://trusted.example/CC-MAIN-${year - 1}-01-index?url=*.example.com&output=text&fl=url%2Ctimestamp`,
+    ]);
+    expect(urls.map((url) => url.url)).toEqual(["https://example.com/archive"]);
+  });
+
   it("propagates a non-skippable collinfo transport failure", async () => {
     stubJSON({ error: "unreachable" }, 0);
 
