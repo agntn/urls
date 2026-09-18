@@ -38,4 +38,39 @@ describe("getTextLines", () => {
 
     await expect(pending).rejects.toThrow("caller stopped");
   });
+
+  it("keeps the caller's reason when the body stream fails with a generic abort", async () => {
+    vi.stubGlobal("fetch", vi.fn(stalledAfterFirstLine));
+    const controller = new AbortController();
+    const lines = getTextLines("https://example.com/cdx", { signal: controller.signal });
+
+    await expect(lines.next()).resolves.toEqual({ done: false, value: "first" });
+    const pending = lines.next();
+    controller.abort(new Error("caller stopped"));
+
+    await expect(pending).rejects.toThrow("caller stopped");
+  });
 });
+
+/**
+ * Answer with one line, then stall until the request signal aborts and fail the body with a
+ * generic abort that carries no caller reason, the way a runtime outside undici might.
+ *
+ * @param _input Request URL.
+ * @param init Request options carrying the composed signal.
+ * @returns {Promise<Response>} A streaming response that never completes on its own.
+ */
+async function stalledAfterFirstLine(_input: string, init?: RequestInit): Promise<Response> {
+  const signal = init?.signal;
+  const body = new ReadableStream<Uint8Array>({
+    start(controller) {
+      controller.enqueue(new TextEncoder().encode("first\n"));
+      signal?.addEventListener(
+        "abort",
+        () => controller.error(new DOMException("The operation was aborted", "AbortError")),
+        { once: true },
+      );
+    },
+  });
+  return new Response(body, { status: 200, headers: { "Content-Type": "text/plain" } });
+}

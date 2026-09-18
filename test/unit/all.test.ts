@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { discoverAll, discoverWithFallback } from "../../src/core/all.ts";
+import { stubHanging } from "../helpers.ts";
 import "../../src/providers/index.ts";
 
 afterEach(() => {
@@ -56,6 +57,34 @@ describe("discoverAll", () => {
 });
 
 describe("discoverWithFallback", () => {
+  it("rejects with the caller's reason instead of one failure per source", async () => {
+    stubHanging();
+    const controller = new AbortController();
+
+    const reason = new Error("caller stopped");
+
+    const pending = discoverAll("example.com", { signal: controller.signal });
+    controller.abort(reason);
+
+    await expect(pending).rejects.toBe(reason);
+  });
+});
+
+describe("discoverWithFallback", () => {
+  it("ends the chain with the caller's reason instead of trying the next source", async () => {
+    const fetch = stubHanging();
+    const controller = new AbortController();
+
+    const reason = new Error("caller stopped");
+
+    const pending = discoverWithFallback("example.com", { signal: controller.signal });
+    await vi.waitFor(() => expect(fetch).toHaveBeenCalled());
+    controller.abort(reason);
+
+    await expect(pending).rejects.toBe(reason);
+    expect(fetch).toHaveBeenCalledTimes(1);
+  });
+
   it("selects the keyless default and returns its URLs", async () => {
     vi.stubGlobal(
       "fetch",

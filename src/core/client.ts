@@ -53,7 +53,8 @@ export async function getJSON<T>(url: string, options?: ClientOptions): Promise<
  * CDX dumps can reach tens of megabytes; `ofetch` would consume the whole body before
  * returning, so this helper uses plain `fetch` and classifies the status before reading any
  * body bytes. Callers break early (once a limit is hit) and the reader is cancelled. Requests
- * carry a 60-second default timeout, composed with the caller's own signal when one is given.
+ * carry a 60-second default timeout, composed with the caller's own signal when one is given;
+ * a caller abort surfaces as the caller's reason whether it lands before or during the body.
  *
  * @param url Request URL.
  * @param options Request metadata.
@@ -62,8 +63,13 @@ export async function getJSON<T>(url: string, options?: ClientOptions): Promise<
 export async function* getTextLines(url: string, options?: ClientOptions): AsyncGenerator<string> {
   const response = await fetchText(url, options);
   if (!response.body) return;
-  for await (const line of readLines(response.body)) {
-    yield line;
+  try {
+    for await (const line of readLines(response.body)) {
+      yield line;
+    }
+  } catch (error) {
+    options?.signal?.throwIfAborted();
+    throw error;
   }
 }
 
