@@ -9,6 +9,10 @@
  * development network (HTTP 000), while the plain text query answers instantly; exact-URL
  * deduplication happens in the shared collector instead.
  *
+ * Verified 2026-09-19: `url=domain/*` is a prefix match on the apex host (`www.` folded in by
+ * the urlkey), so subdomains never came back; `matchType=domain` covers them, like the
+ * `*.domain/*` shorthand urlfinder sends.
+ *
  * API: https://web.archive.org/cdx/search/cdx (REST, text lines)
  */
 
@@ -42,7 +46,8 @@ export class Wayback extends Provider {
     const collector = new UrlCollector(options, domain);
 
     const apiURL = `${this.baseUrl}/cdx/search/cdx${buildQuery({
-      url: `${target}/*`,
+      url: target,
+      matchType: "domain",
       output: "txt",
       fl: "original,timestamp",
     })}`;

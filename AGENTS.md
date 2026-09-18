@@ -84,7 +84,7 @@ test/eval-cli.mjs etc.     - packaged/CLI/MCP subprocess gates
 | ----------- | ------------ | ------------------------------------------------------------------------------------------------------------------------------- |
 | alienvault  | live         | `otx.alienvault.com/api/v1/indicators/domain/{d}/url_list`, paginated                                                           |
 | arquivo     | live         | `arquivo.pt/wayback/cdx` NDJSON `matchType=domain`; `output=txt` rejected; omit `limit` hangs; snapshot bodies stay in archives |
-| wayback     | live         | `web.archive.org/cdx/search/cdx` text lines; `collapse=urlkey` variant hangs from this network, dedupe done in collector        |
+| wayback     | live         | `web.archive.org/cdx/search/cdx` text `matchType=domain`; `collapse=urlkey` hangs from this network, dedupe in collector        |
 | urlscan     | live         | answers without key at small volumes; cursor pagination via `search_after`                                                      |
 | vefsafn     | live         | `vefsafn.is/cdx` NDJSON `matchType=domain`; `output=txt` rejected; `limit` ignored; snapshot bodies stay in archives            |
 | virustotal  | live (v3)    | legacy `vtapi/v2` answers 403 HTML (dead); v3 `domains/{d}/urls` with `x-apikey`                                                |
