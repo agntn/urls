@@ -3,6 +3,7 @@ import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import "../../src/providers/index.ts";
 import { createMcpServer } from "../../src/mcp.ts";
+import { stubHanging } from "../helpers.ts";
 
 async function withServer(run: (client: Client) => Promise<void>) {
   const server = createMcpServer();
@@ -75,6 +76,25 @@ describe("urls MCP server", () => {
       expect(text).toContain('"provider": "alienvault"');
       expect(text).toContain('"count": 1');
       expect(text).toContain('"url": "https://example.com/a"');
+    });
+  });
+
+  it("cancels the request when the client cancels the call", async () => {
+    const fetch = stubHanging();
+
+    await withServer(async (client) => {
+      const controller = new AbortController();
+      const pending = client.callTool(
+        { name: "urls_discover", arguments: { domain: "example.com", provider: "alienvault" } },
+        undefined,
+        { signal: controller.signal },
+      );
+      await vi.waitFor(() => expect(fetch).toHaveBeenCalled());
+      controller.abort();
+
+      await expect(pending).rejects.toThrow();
+      const init = fetch.mock.calls[0]?.[1] as RequestInit | undefined;
+      await vi.waitFor(() => expect(init?.signal?.aborted).toBe(true));
     });
   });
 

@@ -87,7 +87,10 @@ export class VirusTotal extends Provider {
     let next: string | undefined;
     for (let page = 0; page < MAX_PAGES && !collector.done; page++) {
       const apiURL = next ?? `${this.baseUrl}/domains/${target}/urls`;
-      const data = await this.getJSON<VtResponse>(apiURL, { headers: this.headers });
+      const data = await this.getJSON<VtResponse>(apiURL, {
+        headers: this.headers,
+        signal: options?.signal,
+      });
       next = sameOriginHttpUrl(collectPage(data, collector, this.name, apiURL), this.baseUrl);
       if (!next) break;
     }

@@ -49,6 +49,7 @@ export class Wayback extends Provider {
 
     for await (const line of this.getTextLines(apiURL, {
       headers: { Accept: "text/plain, */*" },
+      signal: options?.signal,
     })) {
       if (collector.done) break;
       const parsed = parseCdxTextLine(line);

@@ -63,6 +63,9 @@ test/eval-cli.mjs etc.     - packaged/CLI/MCP subprocess gates
 - Streams: CDX-style dumps go through `getTextLines` (plain fetch, status classified before body
   read, early break cancels the reader, 60s default timeout). `ofetch` cannot stream without
   consuming.
+- Cancellation: every provider request takes `options.signal`, composed with the timeout in the
+  client; a caller abort surfaces as the caller's reason. MCP (`extra.signal`), AI SDK
+  (`abortSignal`), Pi and OMP (`execute` third argument) hand over the host's signal.
 - Domain input: every source _request_ is built from `resolveDomain()`, the derived hostname of a
   bare domain or full URL; unparseable input, path-traversing hosts (`.`, `..`, empty labels),
   single-label public suffixes (except `localhost`), and schemeless userinfo are rejected before

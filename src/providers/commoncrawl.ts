@@ -83,20 +83,23 @@ export class CommonCrawl extends Provider {
   async discover(domain: string, options?: DiscoverOptions): Promise<DiscoveredUrl[]> {
     const target = resolveDomain(domain, "commoncrawl");
     const collector = new UrlCollector(options, domain);
+    const signal = options?.signal;
 
-    const indexes = await this.getJSON<CommonCrawlIndex[]>(`${this.baseUrl}/collinfo.json`);
+    const indexes = await this.getJSON<CommonCrawlIndex[]>(`${this.baseUrl}/collinfo.json`, {
+      signal,
+    });
     const years = recentYears();
     const byYear = mapIndexesPerYear(indexes ?? [], years, this.baseUrl);
 
     for (const candidate of years) {
-      if (shouldStop(collector, options?.signal)) break;
+      if (shouldStop(collector, signal)) break;
       const cdxApi = byYear.get(candidate);
       if (!cdxApi) continue;
       try {
-        await this.queryIndex(cdxApi, target, collector);
+        await this.queryIndex(cdxApi, target, collector, signal);
       } catch (error) {
         // One bad index should not discard the others; an aborted caller still re-raises.
-        if (isAborted(options?.signal)) throw error;
+        if (isAborted(signal)) throw error;
       }
     }
 
@@ -112,14 +115,20 @@ export class CommonCrawl extends Provider {
    * @param cdxApi CDX endpoint of one index.
    * @param domain Target domain.
    * @param collector Shared per-call URL collector.
+   * @param signal Caller cancellation, when provided.
    */
-  private async queryIndex(cdxApi: string, domain: string, collector: UrlCollector): Promise<void> {
+  private async queryIndex(
+    cdxApi: string,
+    domain: string,
+    collector: UrlCollector,
+    signal: AbortSignal | undefined,
+  ): Promise<void> {
     const apiURL = new URL(cdxApi);
     apiURL.searchParams.set("url", `*.${domain}`);
     apiURL.searchParams.set("output", "text");
     apiURL.searchParams.set("fl", "url,timestamp");
 
-    for await (const line of this.getTextLines(apiURL.toString())) {
+    for await (const line of this.getTextLines(apiURL.toString(), { signal })) {
       if (collector.done) break;
       const parsed = parseCdxTextLine(line);
       if (!parsed) continue;
