@@ -5,7 +5,7 @@ import type {
 } from "@earendil-works/pi-coding-agent";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { Value } from "typebox/value";
-import { requireTool, stubJSON } from "../helpers.ts";
+import { requireTool, stubHanging, stubJSON } from "../helpers.ts";
 import urlsExtension from "../../packages/pi/extensions/urls.ts";
 
 /**
@@ -96,6 +96,23 @@ describe("urls Pi extension", () => {
     );
 
     expect(result.content).toEqual([{ type: "text", text: "No URLs found" }]);
+  });
+
+  it("discover forwards the host's abort signal to the request", async () => {
+    stubHanging();
+    const tool = requireTool(registerExtensionTools(), "urls_discover");
+    const controller = new AbortController();
+
+    const pending = tool.execute(
+      "test",
+      { domain: "example.com", provider: "alienvault" },
+      controller.signal,
+      undefined,
+      unusedContext,
+    );
+    controller.abort(new Error("host stopped"));
+
+    await expect(pending).rejects.toThrow("host stopped");
   });
 
   it("lists providers without model or network access", async () => {

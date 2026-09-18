@@ -45,20 +45,23 @@ export const discoverTool: Tool<z.infer<typeof discoverInputSchema>, DiscoverToo
   description:
     "Enumerate URLs known for a domain from passive sources. Pass provider 'all' to compare every source.",
   inputSchema: discoverInputSchema,
-  execute: async ({
-    domain,
-    limit,
-    match,
-    filter,
-    noScope,
-    urlScope,
-    urlOutScope,
-    ext,
-    hasQuery,
-    from,
-    to,
-    provider,
-  }) => {
+  execute: async (
+    {
+      domain,
+      limit,
+      match,
+      filter,
+      noScope,
+      urlScope,
+      urlOutScope,
+      ext,
+      hasQuery,
+      from,
+      to,
+      provider,
+    },
+    { abortSignal },
+  ) => {
     const options = {
       limit,
       match,
@@ -70,6 +73,7 @@ export const discoverTool: Tool<z.infer<typeof discoverInputSchema>, DiscoverToo
       hasQuery,
       from,
       to,
+      signal: abortSignal,
     };
     const outcome = await runDiscover(domain, options, provider);
     if (outcome.mode === "comparison") {

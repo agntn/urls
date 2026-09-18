@@ -123,7 +123,7 @@ export default function urlsExtension(pi: ExtensionAPI): void {
         }),
       ),
     }),
-    async execute(_toolCallId, params): Promise<UrlsToolResult> {
+    async execute(_toolCallId, params, signal): Promise<UrlsToolResult> {
       const lib = await loadLibrary();
       const options = {
         limit: params.limit,
@@ -136,6 +136,7 @@ export default function urlsExtension(pi: ExtensionAPI): void {
         hasQuery: params.hasQuery,
         from: params.from,
         to: params.to,
+        signal,
       };
       const outcome = await lib.runDiscover(params.domain, options, params.provider);
       if (outcome.mode === "comparison") {

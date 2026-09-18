@@ -48,6 +48,7 @@ export class Vefsafn extends Provider {
 
     for await (const line of this.getTextLines(apiURL, {
       headers: { Accept: "application/x-ndjson, application/json, */*" },
+      signal: options?.signal,
     })) {
       if (collector.done) break;
       if (!line.trim()) continue;

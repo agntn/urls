@@ -131,7 +131,10 @@ export class UrlScan extends Provider {
       apiURL.searchParams.set("size", "10000");
       if (searchAfter) apiURL.searchParams.set("search_after", searchAfter);
 
-      const data = await this.getJSON<UrlScanPage>(apiURL.toString(), { headers });
+      const data = await this.getJSON<UrlScanPage>(apiURL.toString(), {
+        headers,
+        signal: options?.signal,
+      });
       searchAfter = collectSearchPage(data, collector, this.name, apiURL.toString());
       if (!searchAfter) break;
     }

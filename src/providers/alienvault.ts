@@ -45,7 +45,7 @@ export class AlienVault extends Provider {
 
     for (let page = 1; page <= MAX_PAGES && !collector.done; page++) {
       const apiURL = `${this.baseUrl}/api/v1/indicators/domain/${target}/url_list${buildQuery({ page })}`;
-      const data = await this.getJSON<AlienVaultPage>(apiURL);
+      const data = await this.getJSON<AlienVaultPage>(apiURL, { signal: options?.signal });
       for (const record of data.url_list ?? []) {
         for (const extracted of extractUrls(record.url ?? "")) {
           collector.push(this.name, extracted, apiURL);

@@ -34,15 +34,23 @@ export interface SerializedOutcome<T> {
 /**
  * Run one operation on every registered provider in parallel.
  *
+ * A caller abort rejects the whole fan-out with the caller's reason instead of landing as one
+ * failure per provider.
+ *
  * @param run Operation to run per provider.
+ * @param signal Caller cancellation, when provided.
  * @returns {Promise<ProviderOutcome<T>[]>} Per-provider outcomes.
  */
-async function runAll<T>(run: (provider: Provider) => Promise<T>): Promise<ProviderOutcome<T>[]> {
+async function runAll<T>(
+  run: (provider: Provider) => Promise<T>,
+  signal: AbortSignal | undefined,
+): Promise<ProviderOutcome<T>[]> {
   return Promise.all(
     providers().map(async (name): Promise<ProviderOutcome<T>> => {
       try {
         return { provider: name, result: await run(await create(name)) };
       } catch (error) {
+        signal?.throwIfAborted();
         return { provider: name, error: normalizeError(error, name) };
       }
     }),
@@ -60,7 +68,10 @@ export function discoverAll(
   domain: string,
   options?: Readonly<DiscoverOptions>,
 ): Promise<ProviderOutcome<DiscoveredUrl[]>[]> {
-  return runAll((provider) => requireOperation(provider, "discover")(domain, options));
+  return runAll(
+    (provider) => requireOperation(provider, "discover")(domain, options),
+    options?.signal,
+  );
 }
 
 /**
@@ -99,13 +110,15 @@ function isSkippable(error: UrlsError): boolean {
  * about access rather than the request: missing keys, billing, rate limits, and unsupported
  * operations. Anything else (bad input, transport) propagates immediately, and when every
  * provider is skipped the first skip reason is thrown - that is the error of the provider
- * auto-selection actually picked.
+ * auto-selection actually picked. A caller abort ends the chain with the caller's reason.
  *
  * @param run The operation to run on each candidate provider.
+ * @param signal Caller cancellation, when provided.
  * @returns {Promise<{ provider: string; result: T }>} The first successful provider name and result.
  */
 async function runWithFallback<T>(
   run: (provider: Provider) => Promise<T>,
+  signal: AbortSignal | undefined,
 ): Promise<{ provider: string; result: T }> {
   const candidates = [...new Set([resolveProvider(), ...providers()])];
   let firstSkipped: UrlsError | undefined;
@@ -114,6 +127,7 @@ async function runWithFallback<T>(
       const provider = await create(name);
       return { provider: name, result: await run(provider) };
     } catch (error) {
+      signal?.throwIfAborted();
       const normalized = normalizeError(error, name);
       if (!isSkippable(normalized)) throw normalized;
       firstSkipped ??= normalized;
@@ -133,5 +147,8 @@ export function discoverWithFallback(
   domain: string,
   options?: Readonly<DiscoverOptions>,
 ): Promise<{ provider: string; result: DiscoveredUrl[] }> {
-  return runWithFallback((provider) => requireOperation(provider, "discover")(domain, options));
+  return runWithFallback(
+    (provider) => requireOperation(provider, "discover")(domain, options),
+    options?.signal,
+  );
 }

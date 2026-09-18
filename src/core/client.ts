@@ -19,9 +19,11 @@ export interface ClientOptions {
  * Fetch JSON with Urls headers and a 30-second default timeout.
  *
  * Passive enumeration can legitimately take longer than an interactive read; the default is
- * twice the family's interactive default.
+ * twice the family's interactive default. The timeout is composed with the caller's signal
+ * rather than passed to ofetch, which ignores its own timeout once a signal is set.
  *
- * Transport failures are normalized before they leave this boundary.
+ * Transport failures are normalized before they leave this boundary; a caller abort is
+ * rethrown as the caller's reason.
  *
  * @param url Request URL.
  * @param options Request metadata.
@@ -36,11 +38,11 @@ export async function getJSON<T>(url: string, options?: ClientOptions): Promise<
         "User-Agent": USER_AGENT,
         ...options?.headers,
       },
-      timeout: options?.timeout ?? 30_000,
-      signal: options?.signal,
+      signal: combinedSignal(options, 30_000),
       retry: false,
     });
   } catch (error) {
+    options?.signal?.throwIfAborted();
     throw normalizeError(error, options?.provider, url);
   }
 }
@@ -51,7 +53,8 @@ export async function getJSON<T>(url: string, options?: ClientOptions): Promise<
  * CDX dumps can reach tens of megabytes; `ofetch` would consume the whole body before
  * returning, so this helper uses plain `fetch` and classifies the status before reading any
  * body bytes. Callers break early (once a limit is hit) and the reader is cancelled. Requests
- * carry a 60-second default timeout, composed with the caller's own signal when one is given.
+ * carry a 60-second default timeout, composed with the caller's own signal when one is given;
+ * a caller abort surfaces as the caller's reason whether it lands before or during the body.
  *
  * @param url Request URL.
  * @param options Request metadata.
@@ -60,8 +63,13 @@ export async function getJSON<T>(url: string, options?: ClientOptions): Promise<
 export async function* getTextLines(url: string, options?: ClientOptions): AsyncGenerator<string> {
   const response = await fetchText(url, options);
   if (!response.body) return;
-  for await (const line of readLines(response.body)) {
-    yield line;
+  try {
+    for await (const line of readLines(response.body)) {
+      yield line;
+    }
+  } catch (error) {
+    options?.signal?.throwIfAborted();
+    throw error;
   }
 }
 
@@ -82,10 +90,11 @@ async function fetchText(url: string, options?: ClientOptions): Promise<Response
         "User-Agent": USER_AGENT,
         ...options?.headers,
       },
-      signal: combinedSignal(options),
+      signal: combinedSignal(options, 60_000),
       redirect: "follow",
     });
   } catch (error) {
+    options?.signal?.throwIfAborted();
     throw normalizeError(error, options?.provider, url);
   }
   if (!response.ok) {
@@ -98,13 +107,14 @@ async function fetchText(url: string, options?: ClientOptions): Promise<Response
 }
 
 /**
- * Compose a caller signal with a 60-second timeout for streaming requests.
+ * Compose the caller's signal with the request timeout.
  *
  * @param options Request metadata.
+ * @param defaultTimeout Timeout in milliseconds when the options carry none.
  * @returns {AbortSignal} A signal that aborts on timeout or on the caller's cancellation.
  */
-function combinedSignal(options?: ClientOptions): AbortSignal {
-  const timeout = AbortSignal.timeout(options?.timeout ?? 60_000);
+function combinedSignal(options: ClientOptions | undefined, defaultTimeout: number): AbortSignal {
+  const timeout = AbortSignal.timeout(options?.timeout ?? defaultTimeout);
   return options?.signal ? AbortSignal.any([options.signal, timeout]) : timeout;
 }
 

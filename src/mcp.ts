@@ -67,20 +67,23 @@ export function createMcpServer(): McpServer {
       },
       annotations: { readOnlyHint: true },
     },
-    async ({
-      domain,
-      limit,
-      match,
-      filter,
-      noScope,
-      urlScope,
-      urlOutScope,
-      ext,
-      hasQuery,
-      from,
-      to,
-      provider,
-    }) => {
+    async (
+      {
+        domain,
+        limit,
+        match,
+        filter,
+        noScope,
+        urlScope,
+        urlOutScope,
+        ext,
+        hasQuery,
+        from,
+        to,
+        provider,
+      },
+      extra,
+    ) => {
       const options = {
         limit,
         match,
@@ -92,6 +95,7 @@ export function createMcpServer(): McpServer {
         hasQuery,
         from,
         to,
+        signal: extra.signal,
       };
       const outcome = await runDiscover(domain, options, provider);
       if (outcome.mode === "comparison") {

@@ -1,6 +1,6 @@
 import * as TypeBox from "@oh-my-pi/omptype/typebox";
 import type { ExtensionAPI, ExtensionContext, ToolDefinition } from "@oh-my-pi/pi-coding-agent";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 /**
  * The host serves these modules to loaded extensions at runtime; under vitest the renderers are
@@ -19,7 +19,7 @@ vi.mock("@oh-my-pi/pi-coding-agent/tui", () => ({
   renderStatusLine: (options: unknown) => JSON.stringify(options),
 }));
 
-import { requireTool, stubJSON } from "../helpers.ts";
+import { requireTool, stubHanging, stubJSON } from "../helpers.ts";
 import urlsOmpExtension from "../../packages/omp/extensions/urls.ts";
 
 interface RegisteredExtension {
@@ -63,6 +63,10 @@ function accepts(tool: ToolDefinition, value: unknown): boolean {
 /** SAFETY: the tested execute functions do not read ExtensionContext. */
 const unusedContext = {} as ExtensionContext;
 
+afterEach(() => {
+  vi.unstubAllGlobals();
+});
+
 describe("urls OMP extension", () => {
   it("registers the complete read-only tool set under an extension label", () => {
     const { label, tools } = registerExtensionTools();
@@ -103,6 +107,23 @@ describe("urls OMP extension", () => {
     );
 
     expect(result.content).toEqual([{ type: "text", text: "https://example.com/a" }]);
+  });
+
+  it("discover forwards the host's abort signal to the request", async () => {
+    stubHanging();
+    const tool = requireTool(registerExtensionTools().tools, "urls_discover");
+    const controller = new AbortController();
+
+    const pending = tool.execute(
+      "test",
+      { domain: "example.com", provider: "alienvault" },
+      controller.signal,
+      undefined,
+      unusedContext,
+    );
+    controller.abort(new Error("host stopped"));
+
+    await expect(pending).rejects.toThrow("host stopped");
   });
 
   it("lists providers without model or network access", async () => {
