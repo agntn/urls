@@ -135,6 +135,20 @@ describe("virustotal provider", () => {
     );
   });
 
+  it("reads an empty links.next as the last page", async () => {
+    stubJSON({ data: [{ attributes: { url: "https://example.com/only" } }], links: { next: "" } });
+    const onTruncated = vi.fn();
+
+    const urls = await (
+      await create("virustotal", { apiKey: "key" })
+    ).discover("example.com", {
+      onTruncated,
+    });
+
+    expect(urls).toHaveLength(1);
+    expect(onTruncated).not.toHaveBeenCalled();
+  });
+
   it("sends the key in the x-apikey header, not the URL", async () => {
     const fetch = stubJSON({ data: [], links: {} });
 

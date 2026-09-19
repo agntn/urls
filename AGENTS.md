@@ -81,10 +81,11 @@ test/eval-cli.mjs etc.     - packaged/CLI/MCP subprocess gates
   surfaces (MCP, AI SDK, Pi, OMP) go through `runDiscoverPage`, which defaults to
   `DEFAULT_DISCOVER_LIMIT` (100, next to the bound in `core/types.ts`) and fetches one URL past
   the bound to report `hasMore`; a full page at the published bound reports `hasMore` too, since
-  the probe cannot look further, and so does a paged source that stopped on its own (page
-  safeguard: AlienVault 20 pages, urlscan and VirusTotal 50; a cursor it refuses to follow) with
-  a next page still advertised, which it reports through `DiscoverOptions.onTruncated` and the
-  page carries as `truncated`. `reference` stays off the records unless the JSON surfaces (MCP,
+  the probe cannot look further, and so does a source that stopped on its own with more still
+  there (page safeguard: AlienVault 20 pages, urlscan and VirusTotal 50; a cursor VirusTotal
+  refuses to follow; an Arquivo response that fills its 10000-row request cap), which it reports
+  through `DiscoverOptions.onTruncated` and the page carries as `truncated`. Filters cannot
+  reach those rows, because they apply to what the source returned. `reference` stays off the records unless the JSON surfaces (MCP,
   AI SDK) ask for it; Pi and OMP print URLs only and take no such switch.
 
 ## API audit (2026-09-02)

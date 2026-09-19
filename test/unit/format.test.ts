@@ -48,7 +48,7 @@ describe("formatDiscoverPage", () => {
 
   it("keeps the remark on an empty page the filters emptied before the source ended", () => {
     expect(formatDiscoverPage(pageOf({ count: 0, urls: [], hasMore: true, truncated: true }))).toBe(
-      "No URLs found\nsource stopped early with more advertised; narrow with match, ext, urlScope",
+      "No URLs found\nsource stopped early with more advertised and no cursor to continue; try another source",
     );
   });
 

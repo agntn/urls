@@ -55,7 +55,9 @@ const NARROW = "narrow with match, ext, urlScope";
  */
 function limitNote(page: DiscoverPage): string | undefined {
   if (!page.hasMore) return undefined;
-  if (page.truncated) return `source stopped early with more advertised; ${NARROW}`;
+  if (page.truncated) {
+    return "source stopped early with more advertised and no cursor to continue; try another source";
+  }
   if (page.limit >= MAX_DISCOVER_RESULTS) return `limit ${page.limit} reached; ${NARROW}`;
   return `limit ${page.limit} reached; raise limit or ${NARROW}`;
 }

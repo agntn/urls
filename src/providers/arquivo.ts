@@ -21,7 +21,10 @@ import { buildQuery } from "../core/client.ts";
 import { UrlCollector, extractUrls, resolveDomain } from "../core/url.ts";
 import { parseCdxNdjsonLine } from "../core/url-shape.ts";
 
-/** Arquivo hangs without a limit; this is the per-request page safeguard. */
+/**
+ * Arquivo hangs without a limit; this is the per-request page safeguard. A response that fills
+ * it may have been cut by the archive, so the collector is told the list is not complete.
+ */
 const CDX_PAGE_LIMIT = 10_000;
 
 export class Arquivo extends Provider {
@@ -50,18 +53,21 @@ export class Arquivo extends Provider {
       limit: CDX_PAGE_LIMIT,
     })}`;
 
+    let rows = 0;
     for await (const line of this.getTextLines(apiURL, {
       headers: { Accept: "application/x-ndjson, application/json, */*" },
       signal: options?.signal,
     })) {
       if (collector.done) break;
       if (!line.trim()) continue;
+      rows += 1;
       const parsed = parseCdxNdjsonLine(line);
       if (!parsed) continue;
       for (const extracted of extractUrls(parsed.url)) {
         collector.push(this.name, extracted, apiURL, parsed.timestamp);
       }
     }
+    collector.truncated(this.name, rows >= CDX_PAGE_LIMIT);
 
     return collector.results;
   }

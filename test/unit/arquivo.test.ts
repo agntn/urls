@@ -58,6 +58,22 @@ describe("arquivo provider", () => {
     expect(requestUrl).not.toMatch(/[?&]limit=2(?:&|$)/);
   });
 
+  it("reports a response that fills the request cap as cut, a shorter one as complete", async () => {
+    const full = Array.from({ length: 10_000 }, (_, i) => `{"url": "https://example.com/${i}"}`);
+    stubText(`${full.join("\n")}\n`);
+    const onTruncated = vi.fn();
+    const provider = await create("arquivo");
+
+    const urls = await provider.discover("example.com", { onTruncated });
+    expect(urls).toHaveLength(10_000);
+    expect(onTruncated).toHaveBeenCalledExactlyOnceWith("arquivo");
+
+    stubText(CDX_BODY);
+    const complete = vi.fn();
+    await provider.discover("example.com", { onTruncated: complete });
+    expect(complete).not.toHaveBeenCalled();
+  });
+
   it("drops off-scope lines silently", async () => {
     stubText('{"url": "https://cdn.other.test/lib.js"}\n{"url": "https://example.com/keep"}\n');
 

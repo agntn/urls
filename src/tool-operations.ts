@@ -31,7 +31,8 @@ export interface DiscoverPage {
   readonly hasMore: boolean;
   /**
    * True when the source stopped on its own (its page safeguard, a cursor it refuses to follow)
-   * with a next page advertised; a higher limit cannot reach those pages, a narrower query can.
+   * with a next page advertised. Neither a higher limit nor a filter reaches those pages, since
+   * filters apply to what the source already returned; another source might.
    */
   readonly truncated: boolean;
   /** Discovered URLs, in source order */
