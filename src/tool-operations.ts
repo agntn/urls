@@ -24,7 +24,10 @@ export interface DiscoverPage {
   readonly count: number;
   /** Bound applied to this page, the caller's or the default */
   readonly limit: number;
-  /** True when the source had a URL past the bound, or filled a page at the published bound */
+  /**
+   * True when the probe for one URL past the bound found it, or the page fills the published
+   * bound. A source that stops on its own page safeguard ends the page without a signal.
+   */
   readonly hasMore: boolean;
   /** Discovered URLs, in source order */
   readonly urls: readonly DiscoveredUrl[];

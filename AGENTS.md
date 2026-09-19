@@ -81,8 +81,11 @@ test/eval-cli.mjs etc.     - packaged/CLI/MCP subprocess gates
   surfaces (MCP, AI SDK, Pi, OMP) go through `runDiscoverPage`, which defaults to
   `DEFAULT_DISCOVER_LIMIT` (100, next to the bound in `core/types.ts`) and fetches one URL past
   the bound to report `hasMore`; a full page at the published bound reports `hasMore` too, since
-  the probe cannot look further. `reference` stays off the records unless the JSON surfaces (MCP,
-  AI SDK) ask for it; Pi and OMP print URLs only and take no such switch.
+  the probe cannot look further. The probe is the only signal: a source that stops on its own
+  page safeguard (AlienVault 20 pages, urlscan and VirusTotal 50) ends the page with `hasMore`
+  false, because `discover()` returns the URLs and nothing else. `reference` stays off the
+  records unless the JSON surfaces (MCP, AI SDK) ask for it; Pi and OMP print URLs only and take
+  no such switch.
 
 ## API audit (2026-09-02)
 
