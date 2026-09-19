@@ -25,8 +25,8 @@ export interface DiscoverPage {
   /** Bound applied to this page, the caller's or the default */
   readonly limit: number;
   /**
-   * True when the probe for one URL past the bound found it, or the page fills the published
-   * bound. A source that stops on its own page safeguard ends the page without a signal.
+   * True when the probe for one URL past the bound found it, the page fills the published bound,
+   * or the source stopped at its own page safeguard with pages still advertised.
    */
   readonly hasMore: boolean;
   /** Discovered URLs, in source order */
@@ -85,7 +85,15 @@ export async function runDiscoverPage(
 ): Promise<DiscoverPageResult> {
   const limit = clampMaxResults(options?.limit ?? DEFAULT_DISCOVER_LIMIT, MAX_DISCOVER_RESULTS);
   const { reference = false, ...discoverOptions } = options ?? {};
-  const probe = { ...discoverOptions, limit: Math.min(limit + 1, MAX_DISCOVER_RESULTS) };
+  const truncated = new Set<string>();
+  const probe = {
+    ...discoverOptions,
+    limit: Math.min(limit + 1, MAX_DISCOVER_RESULTS),
+    onTruncated: (source: string) => {
+      truncated.add(source);
+      options?.onTruncated?.(source);
+    },
+  };
   const outcome = await runDiscover(domain, probe, provider);
   if (outcome.mode === "comparison") {
     return {
@@ -93,14 +101,17 @@ export async function runDiscoverPage(
       outcomes: outcome.outcomes.map((entry) =>
         entry.error
           ? entry
-          : { provider: entry.provider, result: toPage(entry.result, limit, reference) },
+          : {
+              provider: entry.provider,
+              result: toPage(entry.result, limit, reference, truncated.has(entry.provider)),
+            },
       ),
     };
   }
   return {
     mode: "single",
     provider: outcome.provider,
-    page: toPage(outcome.urls, limit, reference),
+    page: toPage(outcome.urls, limit, reference, truncated.has(outcome.provider)),
   };
 }
 
@@ -111,14 +122,20 @@ export async function runDiscoverPage(
  * @param urls URLs the source returned for `limit + 1`.
  * @param limit Bound the page reports.
  * @param reference Keep the query URL on each record.
+ * @param truncated The source stopped at its page safeguard with pages still advertised.
  * @returns {DiscoverPage} The page with its bound and overflow flag.
  */
-function toPage(urls: readonly DiscoveredUrl[], limit: number, reference: boolean): DiscoverPage {
+function toPage(
+  urls: readonly DiscoveredUrl[],
+  limit: number,
+  reference: boolean,
+  truncated: boolean,
+): DiscoverPage {
   const kept = urls.slice(0, limit);
   return {
     count: kept.length,
     limit,
-    hasMore: urls.length > limit || urls.length >= MAX_DISCOVER_RESULTS,
+    hasMore: truncated || urls.length > limit || urls.length >= MAX_DISCOVER_RESULTS,
     urls: reference ? kept : kept.map(withoutReference),
   };
 }

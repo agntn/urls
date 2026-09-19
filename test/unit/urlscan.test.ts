@@ -90,6 +90,29 @@ describe("urlscan provider", () => {
     expect(urls.map((url) => url.url)).toEqual(["https://example.com/keep"]);
   });
 
+  it("reports the page safeguard when has_more survives fifty pages", async () => {
+    let page = 0;
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => {
+        page += 1;
+        return new Response(
+          JSON.stringify({
+            has_more: true,
+            results: [{ page: { url: `https://example.com/${page}` }, sort: [page, "cursor"] }],
+          }),
+          { status: 200, headers: { "Content-Type": "application/json" } },
+        );
+      }),
+    );
+    const onTruncated = vi.fn();
+
+    const urls = await (await create("urlscan")).discover("example.com", { onTruncated });
+
+    expect(urls).toHaveLength(50);
+    expect(onTruncated).toHaveBeenCalledExactlyOnceWith("urlscan");
+  });
+
   it("rejects a malformed sort cursor instead of looping", async () => {
     stubJSON({ has_more: true, results: [{ page: { url: "https://example.com/a" }, sort: [] }] });
 

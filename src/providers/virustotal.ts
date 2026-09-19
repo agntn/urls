@@ -94,6 +94,7 @@ export class VirusTotal extends Provider {
       next = sameOriginHttpUrl(collectPage(data, collector, this.name, apiURL), this.baseUrl);
       if (!next) break;
     }
+    collector.truncated(this.name, next !== undefined);
 
     return collector.results;
   }

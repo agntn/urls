@@ -138,6 +138,7 @@ export class UrlScan extends Provider {
       searchAfter = collectSearchPage(data, collector, this.name, apiURL.toString());
       if (!searchAfter) break;
     }
+    collector.truncated(this.name, searchAfter !== undefined);
 
     return collector.results;
   }

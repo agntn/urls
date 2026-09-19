@@ -55,6 +55,11 @@ export interface DiscoverOptions {
   readonly to?: string;
   /** Abort signal forwarded to in-flight requests */
   readonly signal?: AbortSignal;
+  /**
+   * Called with the source key when a paged source stops at its own page safeguard while the
+   * backend still advertised a next page, so the caller knows the list is cut, not complete.
+   */
+  readonly onTruncated?: (source: string) => void;
 }
 
 /** Operations a source can serve; `discover` is the only capability today. */

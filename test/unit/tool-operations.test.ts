@@ -154,6 +154,29 @@ describe("runDiscoverPage", () => {
     }
   });
 
+  it("reports more when the source stopped at its page safeguard with pages left", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(
+        async (input: string) =>
+          new Response(
+            JSON.stringify({
+              has_next: true,
+              url_list: [{ url: `https://example.com/${new URL(input).searchParams.get("page")}` }],
+            }),
+            { status: 200, headers: { "Content-Type": "application/json" } },
+          ),
+      ),
+    );
+
+    const outcome = await runDiscoverPage("example.com", { limit: 300 }, "alienvault");
+
+    expect(outcome.mode).toBe("single");
+    if (outcome.mode === "single") {
+      expect(outcome.page).toMatchObject({ count: 20, limit: 300, hasMore: true });
+    }
+  });
+
   it("drops the query URL from every record unless reference is requested", async () => {
     stubJSON(PAGE);
 
