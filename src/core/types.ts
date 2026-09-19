@@ -16,9 +16,12 @@ export interface DiscoveredUrl {
   readonly ext?: string;
   /** Query keys remaining after tracking keys are dropped */
   readonly queryKeys?: readonly string[];
-  /** Earliest source timestamp for this URL, UTC ISO-8601 */
+  /**
+   * Earliest source timestamp among the captures the walk read for this URL, UTC ISO-8601; a
+   * walk that `limit` ends early has not read the captures after the cut
+   */
   readonly firstSeen?: string;
-  /** Latest source timestamp for this URL, UTC ISO-8601 */
+  /** Latest source timestamp among the captures the walk read for this URL, UTC ISO-8601 */
   readonly lastSeen?: string;
 }
 
