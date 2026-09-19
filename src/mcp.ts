@@ -8,6 +8,7 @@ import {
   matchInput,
   noScopeInput,
   providerInput,
+  referenceInput,
   urlOutScopeInput,
   urlScopeInput,
   extInput,
@@ -16,7 +17,8 @@ import {
   toInput,
 } from "./core/schemas.ts";
 import { listProviders } from "./core/registry.ts";
-import { runDiscover } from "./tool-operations.ts";
+import { runDiscoverPage } from "./tool-operations.ts";
+import type { DiscoverPage } from "./tool-operations.ts";
 import { version } from "./version.ts";
 
 function result(value: unknown): CallToolResult {
@@ -25,8 +27,8 @@ function result(value: unknown): CallToolResult {
   };
 }
 
-function providerResult(provider: string, value: unknown): CallToolResult {
-  return result({ provider, count: Array.isArray(value) ? value.length : undefined, urls: value });
+function pageResult(provider: string, page: DiscoverPage): CallToolResult {
+  return result({ provider, ...page });
 }
 
 /**
@@ -50,7 +52,7 @@ export function createMcpServer(): McpServer {
     "urls_discover",
     {
       description:
-        "Enumerate URLs known for a domain from passive sources. Each result carries the source that found it; the default host filter keeps URLs under the input domain; urlScope/urlOutScope match full URLs.",
+        "Enumerate URLs known for a domain from passive sources. The answer names the source, counts the URLs, and says whether the source had more than the limit; the default host filter keeps URLs under the input domain; urlScope/urlOutScope match full URLs.",
       inputSchema: {
         domain: domainInput,
         limit: limitInput,
@@ -63,6 +65,7 @@ export function createMcpServer(): McpServer {
         hasQuery: hasQueryInput,
         from: fromInput,
         to: toInput,
+        reference: referenceInput,
         ...providerInput,
       },
       annotations: { readOnlyHint: true },
@@ -80,6 +83,7 @@ export function createMcpServer(): McpServer {
         hasQuery,
         from,
         to,
+        reference,
         provider,
       },
       extra,
@@ -95,13 +99,14 @@ export function createMcpServer(): McpServer {
         hasQuery,
         from,
         to,
+        reference,
         signal: extra.signal,
       };
-      const outcome = await runDiscover(domain, options, provider);
+      const outcome = await runDiscoverPage(domain, options, provider);
       if (outcome.mode === "comparison") {
         return result(serializeOutcomes(outcome.outcomes));
       }
-      return providerResult(outcome.provider, outcome.urls);
+      return pageResult(outcome.provider, outcome.page);
     },
   );
 

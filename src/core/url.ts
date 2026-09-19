@@ -371,9 +371,11 @@ export class UrlCollector {
   private readonly to: string | undefined;
   private readonly limit: number | undefined;
   private readonly input: string;
+  private readonly onTruncated: ((source: string) => void) | undefined;
 
   constructor(options: DiscoverOptions | undefined, input: string) {
     const rules = collectorRules(options);
+    this.onTruncated = options?.onTruncated;
     this.match = rules.match;
     this.filter = rules.filter;
     this.noScope = rules.noScope;
@@ -394,6 +396,18 @@ export class UrlCollector {
    */
   get done(): boolean {
     return this.limit !== undefined && this.urls.length >= this.limit;
+  }
+
+  /**
+   * Report a paged source that stopped on its own (its page safeguard, a cursor it refuses to
+   * follow) while the backend still advertised a page; silent when the limit ended the walk,
+   * because the caller can see that itself.
+   *
+   * @param source Registry key of the source.
+   * @param pending True when the backend still advertised a next page.
+   */
+  truncated(source: string, pending: boolean): void {
+    if (pending && !this.done) this.onTruncated?.(source);
   }
 
   /**

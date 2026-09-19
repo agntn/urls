@@ -1,7 +1,7 @@
 /** Zod fragments shared by the MCP server and the AI SDK tools. */
 
 import { z } from "zod";
-import { MAX_DISCOVER_RESULTS } from "./types.ts";
+import { DEFAULT_DISCOVER_LIMIT, MAX_DISCOVER_RESULTS } from "./types.ts";
 
 /** Optional provider selector; empty-like strings are rejected before selection. */
 export const providerInput = {
@@ -27,7 +27,17 @@ export const limitInput = z
   .positive()
   .max(MAX_DISCOVER_RESULTS)
   .optional()
-  .describe("Maximum number of URLs to return; sources stop when the bound is reached");
+  .describe(
+    `Maximum number of URLs to return; sources stop when the bound is reached and the answer says whether the source had more. Defaults to ${DEFAULT_DISCOVER_LIMIT}; accepted range: 1-${MAX_DISCOVER_RESULTS}.`,
+  );
+
+/** Provenance switch: the query URL names the request, not the URL, and repeats per record. */
+export const referenceInput = z
+  .boolean()
+  .optional()
+  .describe(
+    "Include the source query URL that returned each record as reference. Defaults to false.",
+  );
 
 /** Keep-only substring patterns, case-insensitive. */
 export const matchInput = z

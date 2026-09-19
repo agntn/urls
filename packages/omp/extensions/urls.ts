@@ -92,16 +92,6 @@ function textResult(text: string): UrlsToolResult {
 }
 
 /**
- * One URL per line; used for a single selected source.
- *
- * @param urls Discovered URL records from one source.
- * @returns {string} The URL list or a short empty message.
- */
-function formatUrlList(urls: readonly UrlsModule.DiscoveredUrl[]): string {
-  return urls.length === 0 ? "No URLs found" : urls.map((url) => url.url).join("\n");
-}
-
-/**
  * Register Urls tools with the OMP extension host.
  *
  * OMP validates tool parameters with its own TypeBox build, so schemas must come from the
@@ -149,7 +139,8 @@ export default function urlsExtension(pi: ExtensionAPI): void {
     }),
     limit: Type.Optional(
       Type.Integer({
-        description: "Maximum number of URLs to return",
+        description:
+          "Maximum number of URLs to return; the answer says when the source had more. Defaults to 100; accepted range: 1-100000.",
         minimum: 1,
         maximum: 100000,
       }),
@@ -215,7 +206,7 @@ export default function urlsExtension(pi: ExtensionAPI): void {
     name: "urls_discover",
     label: "Urls Discover",
     description:
-      "Enumerate URLs known for a domain from passive sources. Returns one URL per line; pass provider 'all' to compare every source.",
+      "Enumerate URLs known for a domain from passive sources. Returns one URL per line, at most 100 unless limit says otherwise, and ends with a note when the source had more; pass provider 'all' to compare every source.",
     parameters: discoverParameters,
     approval: "read",
     renderCall(args, options, theme) {
@@ -240,11 +231,11 @@ export default function urlsExtension(pi: ExtensionAPI): void {
         to: params.to,
         signal,
       };
-      const outcome = await lib.runDiscover(params.domain, options, params.provider);
+      const outcome = await lib.runDiscoverPage(params.domain, options, params.provider);
       if (outcome.mode === "comparison") {
-        return textResult(lib.formatDiscoverAll(params.domain, outcome.outcomes));
+        return textResult(lib.formatDiscoverPages(params.domain, outcome.outcomes));
       }
-      return textResult(formatUrlList(outcome.urls));
+      return textResult(lib.formatDiscoverPage(outcome.page));
     },
   });
 

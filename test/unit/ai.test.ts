@@ -15,7 +15,23 @@ describe("urls AI SDK tools", () => {
       { toolCallId: "test", messages: [] },
     );
 
-    expect(result).toMatchObject({ provider: "alienvault", count: 1 });
+    expect(result).toMatchObject({ provider: "alienvault", count: 1, limit: 100, hasMore: false });
+    expect(result).toHaveProperty("urls.0.url", "https://example.com/a");
+    expect(result).not.toHaveProperty("urls.0.reference");
+  });
+
+  it("discover flags a page cut at the limit", async () => {
+    stubJSON({
+      has_next: false,
+      url_list: [{ url: "https://example.com/a" }, { url: "https://example.com/b" }],
+    });
+
+    const result = await discoverTool.execute?.(
+      { domain: "example.com", provider: "alienvault", limit: 1 },
+      { toolCallId: "test", messages: [] },
+    );
+
+    expect(result).toMatchObject({ count: 1, limit: 1, hasMore: true });
   });
 
   it("discover forwards abortSignal to the request", async () => {

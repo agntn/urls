@@ -1,8 +1,10 @@
 /** Human-readable formatting for CLI, Pi, and OMP output */
 
+import { MAX_DISCOVER_RESULTS } from "./types.ts";
 import type { DiscoveredUrl } from "./types.ts";
 import type { ProviderOutcome, SerializedOutcome } from "./all.ts";
 import type { ProviderListing } from "./registry.ts";
+import type { DiscoverPage } from "../tool-operations.ts";
 
 /**
  * One URL line: plain URL for single-source output.
@@ -14,16 +16,86 @@ export function formatUrlLine(url: DiscoveredUrl): string {
   return url.url;
 }
 
+/** Header details for one source block that the URL records alone cannot carry. */
+export interface SourceBlockOptions {
+  /** Source key for the tag; without it an empty block has no record to read it from */
+  readonly source?: string;
+  /** Remark appended to the summary line */
+  readonly note?: string;
+}
+
 /**
  * Block of one provider's results, tagged with the source key.
  *
  * @param input Input domain the URLs belong to.
  * @param urls Discovered URL records from one source.
+ * @param options Source tag and remark for the summary line.
  * @returns {string} Multi-line block starting with a source-tagged summary line.
  */
-export function formatSourceBlock(input: string, urls: readonly DiscoveredUrl[]): string {
+export function formatSourceBlock(
+  input: string,
+  urls: readonly DiscoveredUrl[],
+  options: SourceBlockOptions = {},
+): string {
+  const source = options.source ?? urls[0]?.source ?? "?";
+  const remark = options.note ? ` (${options.note})` : "";
   const lines = urls.map((url) => `  ${url.url}`);
-  return [`[${urls[0]?.source ?? "?"}] ${urls.length} URLs for "${input}"`, ...lines].join("\n");
+  return [`[${source}] ${urls.length} URLs for "${input}"${remark}`, ...lines].join("\n");
+}
+
+/** The way past a cut page that a higher limit cannot open. */
+const NARROW = "narrow with match, ext, urlScope";
+
+/**
+ * Remark for a page that ends before the source does: what cut it and how to get past it, since
+ * there is no cursor.
+ *
+ * @param page One source's page.
+ * @returns {string | undefined} The remark, or undefined when the source had no more.
+ */
+function limitNote(page: DiscoverPage): string | undefined {
+  if (!page.hasMore) return undefined;
+  if (page.truncated) {
+    return "source stopped early with more advertised and no cursor to continue; try another source";
+  }
+  if (page.limit >= MAX_DISCOVER_RESULTS) return `limit ${page.limit} reached; ${NARROW}`;
+  return `limit ${page.limit} reached; raise limit or ${NARROW}`;
+}
+
+/**
+ * One source's page as text for the agent extensions: one URL per line, then the remark when
+ * the page ends before the source does.
+ *
+ * @param page One source's page.
+ * @returns {string} The URL lines or a short empty message, with the remark when there is one.
+ */
+export function formatDiscoverPage(page: DiscoverPage): string {
+  const lines = page.urls.length === 0 ? ["No URLs found"] : page.urls.map((url) => url.url);
+  const note = limitNote(page);
+  return [...lines, ...(note ? [note] : [])].join("\n");
+}
+
+/**
+ * Side-by-side comparison of pages across providers, errors included.
+ *
+ * @param input Input domain the URLs belong to.
+ * @param outcomes Per-provider pages or normalized failures.
+ * @returns {string} One source-tagged block per provider, errors flattened to messages.
+ */
+export function formatDiscoverPages(
+  input: string,
+  outcomes: readonly ProviderOutcome<DiscoverPage>[],
+): string {
+  return outcomes
+    .map((outcome) =>
+      outcome.error
+        ? `[${outcome.provider}] error: ${outcome.error.message}`
+        : formatSourceBlock(input, outcome.result.urls, {
+            source: outcome.provider,
+            note: limitNote(outcome.result),
+          }),
+    )
+    .join("\n");
 }
 
 /**
@@ -41,7 +113,7 @@ export function formatDiscoverAll(
     .map((outcome) =>
       outcome.error
         ? `[${outcome.provider}] error: ${outcome.error.message}`
-        : formatSourceBlock(input, outcome.result),
+        : formatSourceBlock(input, outcome.result, { source: outcome.provider }),
     )
     .join("\n");
 }

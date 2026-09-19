@@ -80,6 +80,35 @@ describe("virustotal provider", () => {
     expect(second).toBe("https://www.virustotal.com/api/v3/domains/example.com/urls?cursor=abc");
   });
 
+  it("reports the page safeguard when links.next survives fifty pages", async () => {
+    let page = 0;
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => {
+        page += 1;
+        return new Response(
+          JSON.stringify({
+            data: [{ attributes: { url: `https://example.com/${page}` } }],
+            links: {
+              next: `https://www.virustotal.com/api/v3/domains/example.com/urls?cursor=${page}`,
+            },
+          }),
+          { status: 200, headers: { "Content-Type": "application/json" } },
+        );
+      }),
+    );
+    const onTruncated = vi.fn();
+
+    const urls = await (
+      await create("virustotal", { apiKey: "key" })
+    ).discover("example.com", {
+      onTruncated,
+    });
+
+    expect(urls).toHaveLength(50);
+    expect(onTruncated).toHaveBeenCalledExactlyOnceWith("virustotal");
+  });
+
   it("does not follow an off-origin links.next with the API key", async () => {
     const fetch = vi.fn(
       async () =>
@@ -92,16 +121,32 @@ describe("virustotal provider", () => {
         ),
     );
     vi.stubGlobal("fetch", fetch);
+    const onTruncated = vi.fn();
 
     const urls = await (
       await create("virustotal", { apiKey: "secret-key" })
-    ).discover("example.com");
+    ).discover("example.com", { onTruncated });
 
     expect(urls.map((url) => url.url)).toEqual(["https://example.com/report"]);
+    expect(onTruncated).toHaveBeenCalledExactlyOnceWith("virustotal");
     expect(fetch).toHaveBeenCalledTimes(1);
     expect(String(fetch.mock.calls[0]?.[0])).toBe(
       "https://www.virustotal.com/api/v3/domains/example.com/urls",
     );
+  });
+
+  it("reads an empty links.next as the last page", async () => {
+    stubJSON({ data: [{ attributes: { url: "https://example.com/only" } }], links: { next: "" } });
+    const onTruncated = vi.fn();
+
+    const urls = await (
+      await create("virustotal", { apiKey: "key" })
+    ).discover("example.com", {
+      onTruncated,
+    });
+
+    expect(urls).toHaveLength(1);
+    expect(onTruncated).not.toHaveBeenCalled();
   });
 
   it("sends the key in the x-apikey header, not the URL", async () => {

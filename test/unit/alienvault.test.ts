@@ -68,6 +68,36 @@ describe("alienvault provider", () => {
     expect(urls[0]?.reference).toContain("page=1");
   });
 
+  it("reports the page safeguard only when has_next survives it", async () => {
+    const endless = vi.fn(
+      async (input: string) =>
+        new Response(
+          JSON.stringify({
+            has_next: true,
+            url_list: [{ url: `https://example.com/${new URL(input).searchParams.get("page")}` }],
+          }),
+          { status: 200, headers: { "Content-Type": "application/json" } },
+        ),
+    );
+    vi.stubGlobal("fetch", endless);
+    const provider = await create("alienvault");
+
+    const onTruncated = vi.fn();
+    const urls = await provider.discover("example.com", { onTruncated });
+    expect(urls).toHaveLength(20);
+    expect(endless).toHaveBeenCalledTimes(20);
+    expect(onTruncated).toHaveBeenCalledExactlyOnceWith("alienvault");
+
+    const stoppedByLimit = vi.fn();
+    await provider.discover("example.com", { limit: 3, onTruncated: stoppedByLimit });
+    expect(stoppedByLimit).not.toHaveBeenCalled();
+
+    stubJSON(PAGE_TWO);
+    const lastPage = vi.fn();
+    await provider.discover("example.com", { onTruncated: lastPage });
+    expect(lastPage).not.toHaveBeenCalled();
+  });
+
   it("applies the host-based scope and drops off-host URLs", async () => {
     stubJSON(PAGE_ONE);
 

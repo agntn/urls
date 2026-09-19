@@ -6,6 +6,7 @@ import type {
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { Value } from "typebox/value";
 import { requireTool, stubHanging, stubJSON } from "../helpers.ts";
+import { DEFAULT_DISCOVER_LIMIT } from "../../src/core/types.ts";
 import urlsExtension from "../../packages/pi/extensions/urls.ts";
 
 /**
@@ -58,6 +59,38 @@ describe("urls Pi extension", () => {
     expect(Value.Check(tool.parameters, { domain: "example.com", limit: 0 })).toBe(false);
     expect(Value.Check(tool.parameters, { domain: "example.com", limit: 100001 })).toBe(false);
     expect(Value.Check(tool.parameters, { domain: "example.com", limit: 1.5 })).toBe(false);
+  });
+
+  it("names the shared default limit in the limit description", () => {
+    const tool = requireTool(registerExtensionTools(), "urls_discover");
+    const limit = (tool.parameters as { properties: { limit: { description: string } } }).properties
+      .limit;
+
+    expect(limit.description).toContain(`Defaults to ${DEFAULT_DISCOVER_LIMIT};`);
+    expect(tool.promptGuidelines?.join("\n")).toContain(`at most ${DEFAULT_DISCOVER_LIMIT} `);
+  });
+
+  it("discover ends with the limit note when the source had more", async () => {
+    stubJSON({
+      has_next: false,
+      url_list: [{ url: "https://example.com/a" }, { url: "https://example.com/b" }],
+    });
+    const tool = requireTool(registerExtensionTools(), "urls_discover");
+
+    const result = await tool.execute(
+      "test",
+      { domain: "example.com", provider: "alienvault", limit: 1 },
+      undefined,
+      undefined,
+      unusedContext,
+    );
+
+    expect(result.content).toEqual([
+      {
+        type: "text",
+        text: "https://example.com/a\nlimit 1 reached; raise limit or narrow with match, ext, urlScope",
+      },
+    ]);
   });
 
   it("requires a non-empty domain", () => {

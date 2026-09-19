@@ -33,16 +33,6 @@ function textResult(text: string): UrlsToolResult {
   };
 }
 
-/**
- * One URL per line; used for a single selected source.
- *
- * @param urls Discovered URL records from one source.
- * @returns {string} The URL list or a short empty message.
- */
-function formatUrlList(urls: readonly UrlsModule.DiscoveredUrl[]): string {
-  return urls.length === 0 ? "No URLs found" : urls.map((url) => url.url).join("\n");
-}
-
 export default function urlsExtension(pi: ExtensionAPI): void {
   pi.registerTool({
     name: "urls_discover",
@@ -51,7 +41,7 @@ export default function urlsExtension(pi: ExtensionAPI): void {
     promptSnippet: "Use urls_discover to enumerate URLs publicly indexed for a domain.",
     promptGuidelines: [
       "Use urls_discover with a bare domain like example.com; results come from passive sources only, with no active scanning.",
-      "urls_discover returns one URL per line; pass provider 'all' to compare every registered source side by side.",
+      "urls_discover returns one URL per line, at most 100 unless limit says otherwise, and ends with a note when the source had more; pass provider 'all' to compare every registered source side by side.",
       "Pass match and filter lists to urls_discover to keep or drop URLs by substring.",
       "Pass urlScope and urlOutScope to urls_discover as URL prefixes or globs; they apply to the full URL, not to a hostname.",
     ],
@@ -62,7 +52,8 @@ export default function urlsExtension(pi: ExtensionAPI): void {
       }),
       limit: Type.Optional(
         Type.Integer({
-          description: "Maximum number of URLs to return",
+          description:
+            "Maximum number of URLs to return; the answer says when the source had more. Defaults to 100; accepted range: 1-100000.",
           minimum: 1,
           maximum: 100000,
         }),
@@ -138,11 +129,11 @@ export default function urlsExtension(pi: ExtensionAPI): void {
         to: params.to,
         signal,
       };
-      const outcome = await lib.runDiscover(params.domain, options, params.provider);
+      const outcome = await lib.runDiscoverPage(params.domain, options, params.provider);
       if (outcome.mode === "comparison") {
-        return textResult(lib.formatDiscoverAll(params.domain, outcome.outcomes));
+        return textResult(lib.formatDiscoverPages(params.domain, outcome.outcomes));
       }
-      return textResult(formatUrlList(outcome.urls));
+      return textResult(lib.formatDiscoverPage(outcome.page));
     },
   });
 

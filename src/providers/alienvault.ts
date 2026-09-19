@@ -43,6 +43,7 @@ export class AlienVault extends Provider {
     const target = resolveDomain(domain, "alienvault");
     const collector = new UrlCollector(options, domain);
 
+    let hasNext = false;
     for (let page = 1; page <= MAX_PAGES && !collector.done; page++) {
       const apiURL = `${this.baseUrl}/api/v1/indicators/domain/${target}/url_list${buildQuery({ page })}`;
       const data = await this.getJSON<AlienVaultPage>(apiURL, { signal: options?.signal });
@@ -51,8 +52,10 @@ export class AlienVault extends Provider {
           collector.push(this.name, extracted, apiURL);
         }
       }
-      if (!data.has_next) break;
+      hasNext = data.has_next === true;
+      if (!hasNext) break;
     }
+    collector.truncated(this.name, hasNext);
 
     return collector.results;
   }
