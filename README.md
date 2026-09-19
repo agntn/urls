@@ -1,208 +1,160 @@
 # @agntn/urls
 
-[![npm version](https://img.shields.io/npm/v/%40agntn%2Furls?style=flat&colorA=130f40&colorB=474787)](https://npmjs.com/package/@agntn/urls)
-[![license](https://img.shields.io/github/license/agntn/urls?style=flat&colorA=130f40&colorB=474787)](https://github.com/agntn/urls/blob/main/LICENSE)
+[![npm version](https://npmx.dev/api/registry/badge/version/@agntn/urls)](https://npmx.dev/package/@agntn/urls)
+[![npm downloads](https://npmx.dev/api/registry/badge/downloads/@agntn/urls)](https://npmx.dev/package/@agntn/urls)
+[![license](https://npmx.dev/api/registry/badge/license/@agntn/urls)](https://npmx.dev/package/@agntn/urls)
+[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/agntn/urls)
 
-Passive URL discovery for AI agents and the CLI: one API over the public sources that already
-index the web, with no active scanning.
+🗂️ Seven passive sources. Find URLs for a domain with one API.
 
-URLFinder from ProjectDiscovery shows how useful this is in practice - point it at a domain and
-it returns the URLs that Wayback, AlienVault OTX, Common Crawl, URLScan, and VirusTotal have seen
-for it. `@agntn/urls` is the TypeScript version of that idea, plus Arquivo.pt and Vefsafn: seven sources, one
-`discover()` call, deduplicated and scoped to the URLs you asked about.
+## Why?
 
-## Install into agent hosts
+Wayback remembers one URL, OTX knows another. Now you're writing seven clients for what sounded like one question. `@agntn/urls` gives them the same API and filters. The web has enough abandoned URLs without adding your glue code to the pile.
 
-Both agent extensions reuse the same env vars as the library
-(`URLSCAN_API_KEY`, `VIRUSTOTAL_API_KEY`).
+## ✨ Features
 
-```bash
-# Pi
-pi install git:github.com/agntn/urls
+- 🔎 **Seven sources, one call.** Pick an archive or index and hand it a domain.
+- 💤 **Passive discovery.** Requests go to the sources, not the discovered pages.
+- 🧹 **Less duplicate noise.** Each source deduplicates normalized URLs, keeping the first original spelling.
+- 🎯 **Keep the useful bits.** Filter by URL prefix, glob, substring, extension, or query keys.
+- 📅 **Look back in time.** Filter source timestamps by date. Undated hits stay in the results.
+- 🧮 **Compare sources.** Run them all in parallel and keep each source's results or error.
+- 🛑 **Stop when you have enough.** Set a result limit or pass an abort signal from your code.
+- 🤖 **Bring your agent.** Pi, OMP, MCP, and AI SDK tools use the same discovery code.
 
-# OMP
-omp plugin install /absolute/path/to/this/repo
-
-# MCP
-claude mcp add urls --scope user -- node "$PWD/dist/cli.mjs" mcp
-```
-
-Provided tools: `urls_discover` (enumerate URLs for a domain) and `urls_providers` (which
-sources are registered and which need a key).
-
-## Install
+## 📦 Install
 
 Requires Node.js 24 or later.
 
 ```bash
 pnpm add @agntn/urls
-# or globally for the CLI
+
+# Or install the CLI globally
 pnpm add -g @agntn/urls
 ```
 
-## Quick start
+The npm release is pending. These commands will work once the package is published.
+
+## 🚀 First call
+
+After installing the CLI:
+
+```bash
+urls discover example.com -p wayback -n 2
+```
+
+```text
+http://example.com:80/
+http://www.example.com:80/
+```
+
+No API key needed. Even `example.com` has a past ;) That's an actual Wayback response from a local build, not a promise about your next run.
+
+### Commands
+
+| Command                                         | What you get                               |
+| ----------------------------------------------- | ------------------------------------------ |
+| `urls discover example.com -p wayback -n 20`    | Up to 20 URLs from Wayback                 |
+| `urls discover example.com -p all -n 20`        | A comparison, capped at 20 URLs per source |
+| `urls discover example.com -p wayback -n 20 -j` | Successful hits as JSONL                   |
+| `urls providers`                                | Registered sources and key requirements    |
+| `urls mcp`                                      | An MCP server over stdio                   |
+
+Need fewer results? Try `--match`, `--filter`, `--ext`, or `--has-query`. `urls discover --help` lists the options. `--url-scope` and `--url-out-scope` match full URLs, not just hosts. Without those, the default filter keeps the input host and its subdomains.
+
+## 🧠 Library
 
 ```ts
 import { create } from "@agntn/urls";
 
-const wayback = await create("wayback"); // keyless
-const urls = await wayback.discover("example.com", { limit: 10 });
+const archive = await create("wayback");
+const hits = await archive.discover("example.com", { limit: 2 });
 
-for (const hit of urls) {
-  console.log(`${hit.source}: ${hit.url}`);
+for (const hit of hits) {
+  console.log(hit.source, hit.url);
 }
 ```
 
-Provider modules are lazy: `create()` imports the source only on first use, listing the registry
-never loads a module, and the package declares `sideEffects: false`. Each source is also
-reachable directly through its subpath:
+You get records, not a blob to parse again. Each hit says which source found it. Want all seven? Use `discoverAll()`. Want automatic selection with fallback on access errors? Use `discoverWithFallback()`.
 
-```ts
-import { Wayback } from "@agntn/urls/providers/wayback";
+[Result and option types](./src/core/types.ts) · [Exports](./src/index.ts) · [Fallback and comparison](./src/core/all.ts)
+
+For cancellation, pass `signal` in the discovery options. `create()` also accepts `apiKey`, `baseUrl`, and a `timeout` in milliseconds. Direct provider imports work too: `@agntn/urls/providers/wayback` exports `Wayback`.
+
+## 🗺️ Providers
+
+| Key           | Source                             | API key                        |
+| ------------- | ---------------------------------- | ------------------------------ |
+| `alienvault`  | AlienVault OTX                     | No                             |
+| `arquivo`     | Arquivo.pt                         | No                             |
+| `commoncrawl` | Common Crawl                       | No                             |
+| `urlscan`     | URLScan                            | Optional: `URLSCAN_API_KEY`    |
+| `vefsafn`     | Vefsafn, the Icelandic web archive | No                             |
+| `virustotal`  | VirusTotal                         | Required: `VIRUSTOTAL_API_KEY` |
+| `wayback`     | Internet Archive Wayback Machine   | No                             |
+
+Without `-p`, configured VirusTotal credentials take priority. Otherwise discovery starts with AlienVault OTX. A keyless source can still rate-limit you. Free doesn't mean infinitely patient.
+
+[Endpoints and registration](./src/providers/index.ts) · [Provider implementations](./src/providers)
+
+Discovery results stay separate when comparing sources. Limits apply per source, not across the whole comparison. Deduplication is per source too.
+
+## 🤖 Agents
+
+Once the npm release is available, pick your host:
+
+```bash
+pi install npm:@agntn/urls
+omp plugin install @agntn/urls
 ```
 
-Every result is a `DiscoveredUrl`:
+For an MCP client:
 
-```ts
+```json
 {
-  url: "https://www.example.com/docs/index.html",
-  source: "wayback",
-  input: "example.com",
-  reference: "https://web.archive.org/cdx/search/cdx?url=example.com/*&output=txt&fl=original",
+  "mcpServers": {
+    "urls": {
+      "command": "npx",
+      "args": ["-y", "@agntn/urls", "mcp"]
+    }
+  }
 }
 ```
 
-## Sources
+Two tools: `urls_discover` and `urls_providers`. Your agent can ask which sources exist before picking one. Set API keys in the host environment when needed.
 
-| Key           | Key required | Default endpoint                    |
-| ------------- | ------------ | ----------------------------------- |
-| `alienvault`  | no           | `https://otx.alienvault.com`        |
-| `arquivo`     | no           | `https://arquivo.pt`                |
-| `commoncrawl` | no           | `https://index.commoncrawl.org`     |
-| `urlscan`     | optional     | `https://urlscan.io/api/v1/search/` |
-| `vefsafn`     | no           | `https://vefsafn.is`                |
-| `virustotal`  | yes          | `https://www.virustotal.com/api/v3` |
-| `wayback`     | no           | `https://web.archive.org`           |
+Using AI SDK 7 or later? Import `discoverTool` and `providersTool` from `@agntn/urls/ai`. The server factory is `createMcpServer` from `@agntn/urls/mcp`.
 
-Set credentials with environment variables:
+## 🚫 What this does not do
 
-```bash
-export VIRUSTOTAL_API_KEY=...
-export URLSCAN_API_KEY=... # optional; public searches answer without one
-```
+No crawling, page downloads, or checks that a discovered URL still works. An archive hit is a lead, not a health check.
 
-## CLI
+## 🧩 Adding a provider
+
+Found another passive index? Add a [Provider](./src/core/provider.ts) subclass and a [manifest entry](./src/providers/index.ts). [Wayback](./src/providers/wayback.ts) shows the streaming approach. Reuse `UrlCollector` for filtering and forward `options.signal` to every request. External providers can join through `register()`.
+
+## 🛠️ Development
 
 ```bash
-# Default source (AlienVault OTX, keyless)
-urls discover example.com
+pnpm build       # Build the library, CLI, and provider modules
+pnpm test        # Run unit tests
+pnpm lint        # Check code and formatting
+pnpm typecheck   # Check library and extension types
 
-# One source, with a bound
-urls discover example.com -p wayback -n 20
-
-# Fan out to every source, compare side by side
-urls discover example.com -p all
-
-# Keep URLs containing "shop", drop ones containing "privacy"
-urls discover example.com -m shop -f privacy
-
-# JSONL for pipelines
-urls discover example.com -p wayback -n 20 -j
-
-# Disable the host-based filter (keeps URLs the sources report even off-domain)
-urls discover example.com -p all --no-scope
-
-# URL-scope: keep /api, drop /api/internal (patterns are URLs, not hosts)
-urls discover example.com --url-scope "https://example.com/api" --url-out-scope "https://example.com/api/internal"
-
-# List sources and what each needs
-urls providers
+# Exercise CLI, MCP, and the packed package without live discovery
+URLS_EVAL_OFFLINE=1 pnpm test:cli
+URLS_EVAL_OFFLINE=1 pnpm test:mcp
+URLS_EVAL_OFFLINE=1 pnpm test:packed
 ```
 
-### Discovery options
+Omit `URLS_EVAL_OFFLINE=1` to include live discovery checks. Those depend on the upstream services being available.
 
-- `limit` - stop collecting after this many URLs survive the filters. The published cap is
-  100000 (`MAX_DISCOVER_RESULTS`): the CLI rejects a larger value, the library clamps, and
-  MCP/AI schemas share the same constant. Sources stop paging or streaming the moment the
-  bound is reached, so large CDX dumps are not downloaded in full.
-- `match` / `filter` - comma-separated case-insensitive substrings. `match` keeps a URL when it
-  contains any of the patterns; `filter` drops a URL when it contains any.
-- `noScope` - disables the default host-based filter (a URL whose host is the input domain or a
-  subdomain). That filter is only a safety net against off-host junk sources return; it is not
-  program scope.
-- `urlScope` / `urlOutScope` - URL-scope patterns (CLI `--url-scope` / `--url-out-scope`). These
-  apply to the **full URL**, not to a hostname or DNS name. A pattern without `*` is a prefix
-  with a `/`, `?`, or `#` boundary (`https://example.com/api` keeps `/api/v1` and drops
-  `/apiv2`). A pattern with `*` is a glob over the whole URL (`*/admin/*`, `*.js`).
-- `ext` - keep URLs whose path ends with one of these extensions (`js`, `json`, `bak`).
-- `hasQuery` - keep only URLs that still have query keys after tracking keys (`utm_*`, `gclid`,
-  `fbclid`, ...) are dropped.
-- `from` / `to` - inclusive seen-at window as archive digits (`2019`) or an ISO date. ISO
-  offsets are normalized to UTC, and invalid bounds are rejected before a request. Sources that
-  do not report a timestamp are not dropped. CDX sources fill `firstSeen` / `lastSeen`.
-- Dedup is on the normalized URL (fragment stripped, tracking query dropped, remaining query
-  sorted, trailing slash removed). The stored `url` is the first original form.
+## 💛 Thanks
 
-The input accepts a bare domain or a full URL; every source request is built from the derived
-hostname (`https://user@www.example.com:8080/docs` runs the enumeration for
-`www.example.com`), and input no hostname can be derived from is rejected before any request.
+[ProjectDiscovery's urlfinder](https://github.com/projectdiscovery/urlfinder) inspired this package. Same useful question, now in TypeScript.
 
-## Library API
+Built with support from [Claude for Open Source](https://claude.com/contact-sales/claude-for-oss) and [Codex for Open Source](https://developers.openai.com/community/codex-for-oss). More time for the code, less time staring at usage limits.
 
-```ts
-import {
-  create,
-  providers,
-  has,
-  register,
-  resolveProvider,
-  selectProvider,
-  isAllProviders,
-  discoverAll,
-  discoverWithFallback,
-} from "@agntn/urls";
-```
+## 📄 License
 
-- `discoverWithFallback(domain, options)` - runs the auto-selected source, falling past sources
-  whose failure is about access (missing key, billing, rate limit) to the next one that works.
-- `discoverAll(domain, options)` - fans out to every registered source in parallel and returns
-  per-source outcomes, errors included, for side-by-side comparison.
-- `create(name, config)` - async; imports the provider module on first use and reuses the loaded
-  class afterwards (single-flight, so parallel cold calls share one import).
-- `register(ProviderClass, meta)` - add your own passive source; it joins the fan-out and
-  auto-selection like a built-in.
-- `UrlCollector` - the shared scope/filter/dedupe engine every source pages through, exported so
-  a custom collector can reuse the same rules.
-- `extractUrls(text)`, `inScope(url, domain)`, `normalizeHost(input)` - the smaller primitives
-  under the collector, useful for handling raw source dumps yourself.
-
-## Agent surfaces
-
-The extension tools reuse the same library call and the same env vars:
-
-- Pi (`urls_discover`, `urls_providers`)
-- OMP (`urls_discover`, `urls_providers`)
-- MCP server on `urls mcp` with the same two tools
-- AI SDK tools through `@agntn/urls/ai`
-
-```bash
-claude mcp add urls --scope user -- node "$PWD/dist/cli.mjs" mcp
-```
-
-## Notes
-
-- **Common Crawl**'s index host (`index.commoncrawl.org`) has been unreachable from one
-  development network (connection refused); the provider still works where the index is
-  reachable and is exercised through mocked HTTP in unit tests.
-- **Wayback** CDX answers are kept streaming, so `limit`-bounded calls cancel the download once
-  the bound is hit; the `collapse=urlkey` variant of the query intermittently hangs on some
-  networks, so exact-URL deduplication happens in the collector instead.
-- **VirusTotal** uses the v3 API (`domains/{domain}/urls`); the legacy v2 endpoint answers 403
-  HTML and is dead.
-
-## Related
-
-- [projectdiscovery/urlfinder](https://github.com/projectdiscovery/urlfinder) - the Go tool that
-  inspired this library.
-- Other `@agntn` provider libraries: `@agntn/web` (search/read), `@agntn/archives` (web archive
-  snapshots), `@agntn/browsers` (browser services).
+[MIT](./LICENSE)
