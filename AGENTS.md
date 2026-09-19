@@ -42,7 +42,8 @@ Keep AGENTS.md updated with project status.
 ```
 src/core/                  - types, errors, client, registry, resolve, all, url helpers
 src/providers/             - one file per passive source; lazy-loaded from the builtins manifest
-src/tool-operations.ts     - shared discovery executor (explicit / all / fallback)
+src/tool-operations.ts     - shared discovery executors: runDiscover (explicit / all / fallback)
+                             and the bounded runDiscoverPage the agent surfaces use
 src/commands/              - discover, providers, mcp
 src/ai.ts, src/mcp.ts      - AI SDK and MCP surfaces over the same executors
 packages/pi/extensions/    - Pi extension source shipped with the package
@@ -76,7 +77,10 @@ test/eval-cli.mjs etc.     - packaged/CLI/MCP subprocess gates
   CDX sources pass archive timestamps into the collector as `firstSeen` / `lastSeen`.
 - Limit: `MAX_DISCOVER_RESULTS` (100000) is the published bound. `UrlCollector` clamps provided
   limits; CLI rejects out of range; MCP/AI schemas use the same constant. Absent limit stays
-  unbounded aside from per-source page safeguards.
+  unbounded aside from per-source page safeguards on the library and CLI only: the agent
+  surfaces (MCP, AI SDK, Pi, OMP) go through `runDiscoverPage`, which defaults to
+  `DEFAULT_DISCOVER_LIMIT` (100, next to the bound in `core/types.ts`), fetches one URL past the
+  bound to report `hasMore`, and drops `reference` from the records unless asked.
 
 ## API audit (2026-09-02)
 

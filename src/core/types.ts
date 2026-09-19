@@ -90,6 +90,9 @@ export interface ProviderConfig {
 /** Published discovery bound shared by the collector, CLI, and MCP/AI schemas. */
 export const MAX_DISCOVER_RESULTS = 100_000;
 
+/** URLs one agent call returns unless asked for more; a busy domain has tens of thousands. */
+export const DEFAULT_DISCOVER_LIMIT = 100;
+
 /**
  * Clamp a caller-provided limit to `[1, max]`; absent limits become `max`.
  *

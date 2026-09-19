@@ -20,6 +20,7 @@ vi.mock("@oh-my-pi/pi-coding-agent/tui", () => ({
 }));
 
 import { requireTool, stubHanging, stubJSON } from "../helpers.ts";
+import { DEFAULT_DISCOVER_LIMIT } from "../../src/core/types.ts";
 import urlsOmpExtension from "../../packages/omp/extensions/urls.ts";
 
 interface RegisteredExtension {
@@ -84,6 +85,39 @@ describe("urls OMP extension", () => {
     expect(accepts(tool, { domain: "example.com", limit: 0 })).toBe(false);
     expect(accepts(tool, { domain: "example.com", limit: 100001 })).toBe(false);
     expect(accepts(tool, { domain: "example.com", limit: 1.5 })).toBe(false);
+  });
+
+  it("names the shared default limit in the limit description", () => {
+    const tool = requireTool(registerExtensionTools().tools, "urls_discover");
+    const schema = (tool.parameters as unknown as TypeBox.TSchema).toJsonSchema() as {
+      properties: { limit: { description: string } };
+    };
+
+    expect(schema.properties.limit.description).toContain(`Defaults to ${DEFAULT_DISCOVER_LIMIT};`);
+    expect(tool.description).toContain(`at most ${DEFAULT_DISCOVER_LIMIT} `);
+  });
+
+  it("discover ends with the limit note when the source had more", async () => {
+    stubJSON({
+      has_next: false,
+      url_list: [{ url: "https://example.com/a" }, { url: "https://example.com/b" }],
+    });
+    const tool = requireTool(registerExtensionTools().tools, "urls_discover");
+
+    const result = await tool.execute(
+      "test",
+      { domain: "example.com", provider: "alienvault", limit: 1 },
+      undefined,
+      undefined,
+      unusedContext,
+    );
+
+    expect(result.content).toEqual([
+      {
+        type: "text",
+        text: "https://example.com/a\nlimit 1 reached; raise limit or narrow with match, ext, urlScope",
+      },
+    ]);
   });
 
   it("requires a non-empty domain", () => {

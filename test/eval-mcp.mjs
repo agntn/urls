@@ -115,10 +115,13 @@ if (LIVE) {
     arguments: { domain: "example.com", provider: "alienvault", limit: 5 },
   });
   check(
-    "live discover answers with the provider name and URLs",
+    "live discover answers with the provider name, the page bound, and URLs",
     discover.isError !== true &&
       firstText(discover).includes('"provider": "alienvault"') &&
-      firstText(discover).includes('"urls"'),
+      firstText(discover).includes('"limit": 5') &&
+      firstText(discover).includes('"hasMore": ') &&
+      firstText(discover).includes('"urls"') &&
+      !firstText(discover).includes('"reference"'),
     firstText(discover),
   );
 } else {

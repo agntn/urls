@@ -6,7 +6,7 @@ export type {
   ProviderConfig,
   ProviderEntry,
 } from "./core/types.ts";
-export { clampMaxResults, MAX_DISCOVER_RESULTS } from "./core/types.ts";
+export { clampMaxResults, DEFAULT_DISCOVER_LIMIT, MAX_DISCOVER_RESULTS } from "./core/types.ts";
 export {
   extractUrls,
   inScope,
@@ -47,10 +47,17 @@ export { isAllProviders, resolveProvider, selectProvider } from "./core/resolve.
 export type { SelectedProvider } from "./core/resolve.ts";
 export { discoverAll, discoverWithFallback, serializeOutcomes } from "./core/all.ts";
 export type { ProviderOutcome, SerializedOutcome } from "./core/all.ts";
-export { runDiscover } from "./tool-operations.ts";
-export type { DiscoverResult } from "./tool-operations.ts";
+export { runDiscover, runDiscoverPage } from "./tool-operations.ts";
+export type {
+  DiscoverPage,
+  DiscoverPageOptions,
+  DiscoverPageResult,
+  DiscoverResult,
+} from "./tool-operations.ts";
 export {
   formatDiscoverAll,
+  formatDiscoverPage,
+  formatDiscoverPages,
   formatProviders,
   formatSourceBlock,
   formatUrlLine,

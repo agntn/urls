@@ -3,6 +3,7 @@
 import type { DiscoveredUrl } from "./types.ts";
 import type { ProviderOutcome, SerializedOutcome } from "./all.ts";
 import type { ProviderListing } from "./registry.ts";
+import type { DiscoverPage } from "../tool-operations.ts";
 
 /**
  * One URL line: plain URL for single-source output.
@@ -19,11 +20,63 @@ export function formatUrlLine(url: DiscoveredUrl): string {
  *
  * @param input Input domain the URLs belong to.
  * @param urls Discovered URL records from one source.
+ * @param note Remark appended to the summary line, when there is one.
  * @returns {string} Multi-line block starting with a source-tagged summary line.
  */
-export function formatSourceBlock(input: string, urls: readonly DiscoveredUrl[]): string {
+export function formatSourceBlock(
+  input: string,
+  urls: readonly DiscoveredUrl[],
+  note?: string,
+): string {
   const lines = urls.map((url) => `  ${url.url}`);
-  return [`[${urls[0]?.source ?? "?"}] ${urls.length} URLs for "${input}"`, ...lines].join("\n");
+  const remark = note ? ` (${note})` : "";
+  return [`[${urls[0]?.source ?? "?"}] ${urls.length} URLs for "${input}"${remark}`, ...lines].join(
+    "\n",
+  );
+}
+
+/**
+ * Remark for a page cut at its bound: how to get past it, since there is no cursor.
+ *
+ * @param page One source's page.
+ * @returns {string | undefined} The remark, or undefined when the source had no more.
+ */
+function limitNote(page: DiscoverPage): string | undefined {
+  if (!page.hasMore) return undefined;
+  return `limit ${page.limit} reached; raise limit or narrow with match, ext, urlScope`;
+}
+
+/**
+ * One source's page as text for the agent extensions: one URL per line, then the remark when
+ * the bound cut the list.
+ *
+ * @param page One source's page.
+ * @returns {string} The URL lines, a short empty message, or both with the remark.
+ */
+export function formatDiscoverPage(page: DiscoverPage): string {
+  if (page.urls.length === 0) return "No URLs found";
+  const note = limitNote(page);
+  return [...page.urls.map((url) => url.url), ...(note ? [note] : [])].join("\n");
+}
+
+/**
+ * Side-by-side comparison of pages across providers, errors included.
+ *
+ * @param input Input domain the URLs belong to.
+ * @param outcomes Per-provider pages or normalized failures.
+ * @returns {string} One source-tagged block per provider, errors flattened to messages.
+ */
+export function formatDiscoverPages(
+  input: string,
+  outcomes: readonly ProviderOutcome<DiscoverPage>[],
+): string {
+  return outcomes
+    .map((outcome) =>
+      outcome.error
+        ? `[${outcome.provider}] error: ${outcome.error.message}`
+        : formatSourceBlock(input, outcome.result.urls, limitNote(outcome.result)),
+    )
+    .join("\n");
 }
 
 /**

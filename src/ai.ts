@@ -2,7 +2,6 @@
 
 import { tool, type Tool } from "ai";
 import { z } from "zod";
-import type { DiscoveredUrl } from "./core/types.ts";
 import type { SerializedOutcome } from "./core/all.ts";
 import { serializeOutcomes } from "./core/all.ts";
 import { providers } from "./core/registry.ts";
@@ -13,6 +12,7 @@ import {
   matchInput,
   noScopeInput,
   providerInput,
+  referenceInput,
   urlOutScopeInput,
   urlScopeInput,
   extInput,
@@ -20,7 +20,8 @@ import {
   fromInput,
   toInput,
 } from "./core/schemas.ts";
-import { runDiscover } from "./tool-operations.ts";
+import { runDiscoverPage } from "./tool-operations.ts";
+import type { DiscoverPage } from "./tool-operations.ts";
 
 const discoverInputSchema = z.object({
   domain: domainInput,
@@ -34,16 +35,17 @@ const discoverInputSchema = z.object({
   hasQuery: hasQueryInput,
   from: fromInput,
   to: toInput,
+  reference: referenceInput,
   ...providerInput,
 });
 
 type DiscoverToolOutput =
-  | { provider: string; count: number; urls: DiscoveredUrl[] }
-  | { comparison: SerializedOutcome<DiscoveredUrl[]>[] };
+  | ({ provider: string } & DiscoverPage)
+  | { comparison: SerializedOutcome<DiscoverPage>[] };
 
 export const discoverTool: Tool<z.infer<typeof discoverInputSchema>, DiscoverToolOutput> = tool({
   description:
-    "Enumerate URLs known for a domain from passive sources. Pass provider 'all' to compare every source.",
+    "Enumerate URLs known for a domain from passive sources. The answer counts the URLs and says whether the source had more than the limit. Pass provider 'all' to compare every source.",
   inputSchema: discoverInputSchema,
   execute: async (
     {
@@ -58,6 +60,7 @@ export const discoverTool: Tool<z.infer<typeof discoverInputSchema>, DiscoverToo
       hasQuery,
       from,
       to,
+      reference,
       provider,
     },
     { abortSignal },
@@ -73,13 +76,14 @@ export const discoverTool: Tool<z.infer<typeof discoverInputSchema>, DiscoverToo
       hasQuery,
       from,
       to,
+      reference,
       signal: abortSignal,
     };
-    const outcome = await runDiscover(domain, options, provider);
+    const outcome = await runDiscoverPage(domain, options, provider);
     if (outcome.mode === "comparison") {
       return { comparison: serializeOutcomes(outcome.outcomes) };
     }
-    return { provider: outcome.provider, count: outcome.urls.length, urls: outcome.urls };
+    return { provider: outcome.provider, ...outcome.page };
   },
 });
 

@@ -3,7 +3,7 @@ import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import "../../src/providers/index.ts";
 import { createMcpServer } from "../../src/mcp.ts";
-import { stubHanging } from "../helpers.ts";
+import { stubHanging, stubJSON } from "../helpers.ts";
 
 async function withServer(run: (client: Client) => Promise<void>) {
   const server = createMcpServer();
@@ -75,7 +75,43 @@ describe("urls MCP server", () => {
       const text = await firstText(response);
       expect(text).toContain('"provider": "alienvault"');
       expect(text).toContain('"count": 1');
+      expect(text).toContain('"limit": 100');
+      expect(text).toContain('"hasMore": false');
       expect(text).toContain('"url": "https://example.com/a"');
+      expect(text).not.toContain('"reference"');
+    });
+  });
+
+  it("discover cuts the page at the limit and flags the overflow", async () => {
+    stubJSON({
+      has_next: false,
+      url_list: [{ url: "https://example.com/a" }, { url: "https://example.com/b" }],
+    });
+
+    await withServer(async (client) => {
+      const response = await client.callTool({
+        name: "urls_discover",
+        arguments: { domain: "example.com", provider: "alienvault", limit: 1 },
+      });
+
+      const text = await firstText(response);
+      expect(text).toContain('"count": 1');
+      expect(text).toContain('"limit": 1');
+      expect(text).toContain('"hasMore": true');
+      expect(text).not.toContain("https://example.com/b");
+    });
+  });
+
+  it("discover includes the query URL only when reference is requested", async () => {
+    stubJSON({ has_next: false, url_list: [{ url: "https://example.com/a" }] });
+
+    await withServer(async (client) => {
+      const response = await client.callTool({
+        name: "urls_discover",
+        arguments: { domain: "example.com", provider: "alienvault", reference: true },
+      });
+
+      expect(await firstText(response)).toContain('"reference": "https://otx.alienvault.com');
     });
   });
 
