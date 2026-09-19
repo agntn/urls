@@ -1,5 +1,6 @@
 /** Human-readable formatting for CLI, Pi, and OMP output */
 
+import { MAX_DISCOVER_RESULTS } from "./types.ts";
 import type { DiscoveredUrl } from "./types.ts";
 import type { ProviderOutcome, SerializedOutcome } from "./all.ts";
 import type { ProviderListing } from "./registry.ts";
@@ -42,28 +43,34 @@ export function formatSourceBlock(
   return [`[${source}] ${urls.length} URLs for "${input}"${remark}`, ...lines].join("\n");
 }
 
+/** The way past a cut page that a higher limit cannot open. */
+const NARROW = "narrow with match, ext, urlScope";
+
 /**
- * Remark for a page cut at its bound: how to get past it, since there is no cursor.
+ * Remark for a page that ends before the source does: what cut it and how to get past it, since
+ * there is no cursor.
  *
  * @param page One source's page.
  * @returns {string | undefined} The remark, or undefined when the source had no more.
  */
 function limitNote(page: DiscoverPage): string | undefined {
   if (!page.hasMore) return undefined;
-  return `limit ${page.limit} reached; raise limit or narrow with match, ext, urlScope`;
+  if (page.truncated) return `source stopped early with more advertised; ${NARROW}`;
+  if (page.limit >= MAX_DISCOVER_RESULTS) return `limit ${page.limit} reached; ${NARROW}`;
+  return `limit ${page.limit} reached; raise limit or ${NARROW}`;
 }
 
 /**
  * One source's page as text for the agent extensions: one URL per line, then the remark when
- * the bound cut the list.
+ * the page ends before the source does.
  *
  * @param page One source's page.
- * @returns {string} The URL lines, a short empty message, or both with the remark.
+ * @returns {string} The URL lines or a short empty message, with the remark when there is one.
  */
 export function formatDiscoverPage(page: DiscoverPage): string {
-  if (page.urls.length === 0) return "No URLs found";
+  const lines = page.urls.length === 0 ? ["No URLs found"] : page.urls.map((url) => url.url);
   const note = limitNote(page);
-  return [...page.urls.map((url) => url.url), ...(note ? [note] : [])].join("\n");
+  return [...lines, ...(note ? [note] : [])].join("\n");
 }
 
 /**

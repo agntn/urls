@@ -130,7 +130,7 @@ describe("runDiscoverPage", () => {
 
     expect(outcome.mode).toBe("single");
     if (outcome.mode === "single") {
-      expect(outcome.page).toMatchObject({ count: 1, limit: 1, hasMore: true });
+      expect(outcome.page).toMatchObject({ count: 1, limit: 1, hasMore: true, truncated: false });
       expect(outcome.page.urls.map((url) => url.url)).toEqual(["https://example.com/0"]);
     }
   });
@@ -173,7 +173,7 @@ describe("runDiscoverPage", () => {
 
     expect(outcome.mode).toBe("single");
     if (outcome.mode === "single") {
-      expect(outcome.page).toMatchObject({ count: 20, limit: 300, hasMore: true });
+      expect(outcome.page).toMatchObject({ count: 20, limit: 300, hasMore: true, truncated: true });
     }
   });
 

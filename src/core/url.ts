@@ -399,11 +399,12 @@ export class UrlCollector {
   }
 
   /**
-   * Report a paged source that stopped at its safeguard while the backend still advertised a
-   * page; silent when the limit ended the walk, because the caller can see that itself.
+   * Report a paged source that stopped on its own (its page safeguard, a cursor it refuses to
+   * follow) while the backend still advertised a page; silent when the limit ended the walk,
+   * because the caller can see that itself.
    *
    * @param source Registry key of the source.
-   * @param pending True when the backend still had a next page.
+   * @param pending True when the backend still advertised a next page.
    */
   truncated(source: string, pending: boolean): void {
     if (pending && !this.done) this.onTruncated?.(source);

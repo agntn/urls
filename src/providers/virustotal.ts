@@ -85,16 +85,18 @@ export class VirusTotal extends Provider {
     const collector = new UrlCollector(options, domain);
 
     let next: string | undefined;
+    let advertised: string | undefined;
     for (let page = 0; page < MAX_PAGES && !collector.done; page++) {
       const apiURL = next ?? `${this.baseUrl}/domains/${target}/urls`;
       const data = await this.getJSON<VtResponse>(apiURL, {
         headers: this.headers,
         signal: options?.signal,
       });
-      next = sameOriginHttpUrl(collectPage(data, collector, this.name, apiURL), this.baseUrl);
+      advertised = collectPage(data, collector, this.name, apiURL);
+      next = sameOriginHttpUrl(advertised, this.baseUrl);
       if (!next) break;
     }
-    collector.truncated(this.name, next !== undefined);
+    collector.truncated(this.name, advertised !== undefined);
 
     return collector.results;
   }

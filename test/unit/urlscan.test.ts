@@ -121,12 +121,14 @@ describe("urlscan provider", () => {
     );
   });
 
-  it("stops when has_more arrives without results", async () => {
+  it("stops when has_more arrives without results and reports the cut", async () => {
     stubJSON({ has_more: true, results: [] });
+    const onTruncated = vi.fn();
 
-    const urls = await (await create("urlscan")).discover("example.com");
+    const urls = await (await create("urlscan")).discover("example.com", { onTruncated });
 
     expect(urls).toEqual([]);
+    expect(onTruncated).toHaveBeenCalledExactlyOnceWith("urlscan");
   });
 
   it("rejects an empty domain without any request", async () => {

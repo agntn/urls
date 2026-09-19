@@ -125,6 +125,7 @@ export class UrlScan extends Provider {
       : undefined;
 
     let searchAfter: string | undefined;
+    let advertised = false;
     for (let page = 0; page < MAX_PAGES && !collector.done; page++) {
       const apiURL = new URL(this.baseUrl);
       apiURL.searchParams.set("q", `domain:${target}`);
@@ -135,10 +136,11 @@ export class UrlScan extends Provider {
         headers,
         signal: options?.signal,
       });
+      advertised = data?.has_more === true;
       searchAfter = collectSearchPage(data, collector, this.name, apiURL.toString());
       if (!searchAfter) break;
     }
-    collector.truncated(this.name, searchAfter !== undefined);
+    collector.truncated(this.name, advertised);
 
     return collector.results;
   }

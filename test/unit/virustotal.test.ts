@@ -121,12 +121,14 @@ describe("virustotal provider", () => {
         ),
     );
     vi.stubGlobal("fetch", fetch);
+    const onTruncated = vi.fn();
 
     const urls = await (
       await create("virustotal", { apiKey: "secret-key" })
-    ).discover("example.com");
+    ).discover("example.com", { onTruncated });
 
     expect(urls.map((url) => url.url)).toEqual(["https://example.com/report"]);
+    expect(onTruncated).toHaveBeenCalledExactlyOnceWith("virustotal");
     expect(fetch).toHaveBeenCalledTimes(1);
     expect(String(fetch.mock.calls[0]?.[0])).toBe(
       "https://www.virustotal.com/api/v3/domains/example.com/urls",

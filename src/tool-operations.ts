@@ -26,9 +26,14 @@ export interface DiscoverPage {
   readonly limit: number;
   /**
    * True when the probe for one URL past the bound found it, the page fills the published bound,
-   * or the source stopped at its own page safeguard with pages still advertised.
+   * or the source stopped on its own with pages still advertised.
    */
   readonly hasMore: boolean;
+  /**
+   * True when the source stopped on its own (its page safeguard, a cursor it refuses to follow)
+   * with a next page advertised; a higher limit cannot reach those pages, a narrower query can.
+   */
+  readonly truncated: boolean;
   /** Discovered URLs, in source order */
   readonly urls: readonly DiscoveredUrl[];
 }
@@ -122,7 +127,7 @@ export async function runDiscoverPage(
  * @param urls URLs the source returned for `limit + 1`.
  * @param limit Bound the page reports.
  * @param reference Keep the query URL on each record.
- * @param truncated The source stopped at its page safeguard with pages still advertised.
+ * @param truncated The source stopped on its own with pages still advertised.
  * @returns {DiscoverPage} The page with its bound and overflow flag.
  */
 function toPage(
@@ -136,6 +141,7 @@ function toPage(
     count: kept.length,
     limit,
     hasMore: truncated || urls.length > limit || urls.length >= MAX_DISCOVER_RESULTS,
+    truncated,
     urls: reference ? kept : kept.map(withoutReference),
   };
 }
