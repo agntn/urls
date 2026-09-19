@@ -79,8 +79,10 @@ test/eval-cli.mjs etc.     - packaged/CLI/MCP subprocess gates
   limits; CLI rejects out of range; MCP/AI schemas use the same constant. Absent limit stays
   unbounded aside from per-source page safeguards on the library and CLI only: the agent
   surfaces (MCP, AI SDK, Pi, OMP) go through `runDiscoverPage`, which defaults to
-  `DEFAULT_DISCOVER_LIMIT` (100, next to the bound in `core/types.ts`), fetches one URL past the
-  bound to report `hasMore`, and drops `reference` from the records unless asked.
+  `DEFAULT_DISCOVER_LIMIT` (100, next to the bound in `core/types.ts`) and fetches one URL past
+  the bound to report `hasMore`; a full page at the published bound reports `hasMore` too, since
+  the probe cannot look further. `reference` stays off the records unless the JSON surfaces (MCP,
+  AI SDK) ask for it; Pi and OMP print URLs only and take no such switch.
 
 ## API audit (2026-09-02)
 

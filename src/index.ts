@@ -63,3 +63,4 @@ export {
   formatUrlLine,
   serializeDiscoverAll,
 } from "./core/format.ts";
+export type { SourceBlockOptions } from "./core/format.ts";

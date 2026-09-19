@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { runDiscover, runDiscoverPage } from "../../src/tool-operations.ts";
-import { DEFAULT_DISCOVER_LIMIT } from "../../src/core/types.ts";
+import { DEFAULT_DISCOVER_LIMIT, MAX_DISCOVER_RESULTS } from "../../src/core/types.ts";
 import "../../src/providers/index.ts";
 import { stubJSON } from "../helpers.ts";
 
@@ -132,6 +132,25 @@ describe("runDiscoverPage", () => {
     if (outcome.mode === "single") {
       expect(outcome.page).toMatchObject({ count: 1, limit: 1, hasMore: true });
       expect(outcome.page.urls.map((url) => url.url)).toEqual(["https://example.com/0"]);
+    }
+  });
+
+  it("reports more for a full page at the published bound, where it cannot look past", async () => {
+    stubJSON(pageOf(MAX_DISCOVER_RESULTS));
+
+    const outcome = await runDiscoverPage(
+      "example.com",
+      { limit: MAX_DISCOVER_RESULTS },
+      "alienvault",
+    );
+
+    expect(outcome.mode).toBe("single");
+    if (outcome.mode === "single") {
+      expect(outcome.page).toMatchObject({
+        count: MAX_DISCOVER_RESULTS,
+        limit: MAX_DISCOVER_RESULTS,
+        hasMore: true,
+      });
     }
   });
 

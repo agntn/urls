@@ -15,24 +15,31 @@ export function formatUrlLine(url: DiscoveredUrl): string {
   return url.url;
 }
 
+/** Header details for one source block that the URL records alone cannot carry. */
+export interface SourceBlockOptions {
+  /** Source key for the tag; without it an empty block has no record to read it from */
+  readonly source?: string;
+  /** Remark appended to the summary line */
+  readonly note?: string;
+}
+
 /**
  * Block of one provider's results, tagged with the source key.
  *
  * @param input Input domain the URLs belong to.
  * @param urls Discovered URL records from one source.
- * @param note Remark appended to the summary line, when there is one.
+ * @param options Source tag and remark for the summary line.
  * @returns {string} Multi-line block starting with a source-tagged summary line.
  */
 export function formatSourceBlock(
   input: string,
   urls: readonly DiscoveredUrl[],
-  note?: string,
+  options: SourceBlockOptions = {},
 ): string {
+  const source = options.source ?? urls[0]?.source ?? "?";
+  const remark = options.note ? ` (${options.note})` : "";
   const lines = urls.map((url) => `  ${url.url}`);
-  const remark = note ? ` (${note})` : "";
-  return [`[${urls[0]?.source ?? "?"}] ${urls.length} URLs for "${input}"${remark}`, ...lines].join(
-    "\n",
-  );
+  return [`[${source}] ${urls.length} URLs for "${input}"${remark}`, ...lines].join("\n");
 }
 
 /**
@@ -74,7 +81,10 @@ export function formatDiscoverPages(
     .map((outcome) =>
       outcome.error
         ? `[${outcome.provider}] error: ${outcome.error.message}`
-        : formatSourceBlock(input, outcome.result.urls, limitNote(outcome.result)),
+        : formatSourceBlock(input, outcome.result.urls, {
+            source: outcome.provider,
+            note: limitNote(outcome.result),
+          }),
     )
     .join("\n");
 }
@@ -94,7 +104,7 @@ export function formatDiscoverAll(
     .map((outcome) =>
       outcome.error
         ? `[${outcome.provider}] error: ${outcome.error.message}`
-        : formatSourceBlock(input, outcome.result),
+        : formatSourceBlock(input, outcome.result, { source: outcome.provider }),
     )
     .join("\n");
 }

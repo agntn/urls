@@ -24,7 +24,7 @@ export interface DiscoverPage {
   readonly count: number;
   /** Bound applied to this page, the caller's or the default */
   readonly limit: number;
-  /** True when the source had at least one more URL past the bound; always false at the published bound */
+  /** True when the source had a URL past the bound, or filled a page at the published bound */
   readonly hasMore: boolean;
   /** Discovered URLs, in source order */
   readonly urls: readonly DiscoveredUrl[];
@@ -67,7 +67,8 @@ export async function runDiscover(
 /**
  * Run one discovery request as the agent surfaces need it: bounded by default, one URL past the
  * bound fetched so the page can say whether the source had more, and the query URL dropped from
- * every record unless asked for. The library and CLI keep the unbounded `runDiscover`.
+ * every record unless the JSON surfaces ask for it. The library and CLI keep the unbounded
+ * `runDiscover`; Pi and OMP print URLs only, so they never ask.
  *
  * @param domain Target domain.
  * @param options Page options: the shared discovery options plus `reference`.
@@ -101,7 +102,8 @@ export async function runDiscoverPage(
 }
 
 /**
- * Cut one source's probe result down to its page.
+ * Cut one source's probe result down to its page. At the published bound the probe cannot look
+ * past the page, so a full page there counts as more rather than promising the source is done.
  *
  * @param urls URLs the source returned for `limit + 1`.
  * @param limit Bound the page reports.
@@ -113,7 +115,7 @@ function toPage(urls: readonly DiscoveredUrl[], limit: number, reference: boolea
   return {
     count: kept.length,
     limit,
-    hasMore: urls.length > limit,
+    hasMore: urls.length > limit || urls.length >= MAX_DISCOVER_RESULTS,
     urls: reference ? kept : kept.map(withoutReference),
   };
 }

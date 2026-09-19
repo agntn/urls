@@ -28,7 +28,7 @@ export const limitInput = z
   .max(MAX_DISCOVER_RESULTS)
   .optional()
   .describe(
-    `Maximum number of URLs to return; sources stop when the bound is reached and the answer says whether more exist. Defaults to ${DEFAULT_DISCOVER_LIMIT}; accepted range: 1-${MAX_DISCOVER_RESULTS}.`,
+    `Maximum number of URLs to return; sources stop when the bound is reached and the answer says whether the source had more. Defaults to ${DEFAULT_DISCOVER_LIMIT}; accepted range: 1-${MAX_DISCOVER_RESULTS}.`,
   );
 
 /** Provenance switch: the query URL names the request, not the URL, and repeats per record. */
