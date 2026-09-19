@@ -39,6 +39,16 @@ describe("wayback provider", () => {
     expect(requestUrl).not.toContain("collapse");
   });
 
+  it("asks for the whole domain, not the apex prefix", async () => {
+    const fetch = stubText(CDX_BODY);
+
+    await (await create("wayback")).discover("https://user@www.example.com:8080/docs");
+
+    const query = new URL(String(fetch.mock.calls[0]?.[0] as string)).searchParams;
+    expect(query.get("url")).toBe("www.example.com");
+    expect(query.get("matchType")).toBe("domain");
+  });
+
   it("deduplicates exact URLs across lines", async () => {
     stubText("https://example.com/a\nhttps://example.com/a\nhttps://example.com/b\n");
 
