@@ -83,7 +83,7 @@
     "@types/node": "26.2.0",
     "ai": "7.0.107",
     "changelogen": "0.6.2",
-    "obuild": "0.4.38",
+    "obuild": "0.4.40",
     "oxfmt": "0.63.0",
     "oxlint": "1.78.0",
     "oxlint-tsgolint": "^7.0.2001",
