@@ -16,6 +16,8 @@ Keep AGENTS.md updated with project status.
 - Agent surfaces (MCP, AI SDK, Pi, OMP) answer with bounded pages: `DEFAULT_DISCOVER_LIMIT`
   (100) unless `limit` says otherwise, `hasMore` and `truncated` on every page, `reference`
   opt-in on the JSON surfaces. Library and CLI stay unbounded.
+- No HTTP client dependency: `getJSON` moved to plain `fetch`, so importing the library (the Pi and
+  OMP first call) dropped from 41 to 6 ms and MCP start to `tools/list` from 193 to 161 ms.
 
 ## Stack
 
@@ -66,9 +68,10 @@ test/eval-cli.mjs etc.     - packaged/CLI/MCP subprocess gates
   derived from the directory, not written by hand.
 - All interface fields are `readonly`; function params keep named library types (the repo-local
   allow list covers the internal ones).
-- Streams: CDX-style dumps go through `getTextLines` (plain fetch, status classified before body
-  read, early break cancels the reader, 60s default timeout). `ofetch` cannot stream without
-  consuming.
+- HTTP: plain `fetch` on both paths, no client library; one would load on every Pi/OMP first
+  call and MCP start. CDX-style dumps go through `getTextLines` (status classified before body
+  read, early break cancels the reader, 60s default timeout); JSON through `getJSON` (body parsed
+  whatever the content type, a non-2xx keeps its text as `HTTPError.body`, 30s default timeout).
 - Cancellation: every provider request takes `options.signal`, composed with the timeout in the
   client; a caller abort surfaces as the caller's reason. MCP (`extra.signal`), AI SDK
   (`abortSignal`), Pi and OMP (`execute` third argument) hand over the host's signal.

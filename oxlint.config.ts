@@ -34,7 +34,6 @@ export default defineConfig({
               "URL",
             ],
           },
-          { from: "package", name: "FetchError", package: "ofetch" },
           { from: "package", name: "Client", package: "@modelcontextprotocol/sdk" },
           // Classes with methods: the rule cannot see that call sites do not mutate them.
           { from: "file", name: ["Provider", "UrlCollector", "UrlsError"] },
