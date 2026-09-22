@@ -1,7 +1,5 @@
 /** Urls error hierarchy */
 
-import { FetchError } from "ofetch";
-
 /**
  * Base class for failures surfaced through Urls.
  *
@@ -115,29 +113,21 @@ export class InvalidInputError extends UrlsError {
 }
 
 /**
- * Extract the request URL from an ofetch failure.
- *
- * @param error ofetch failure.
- * @returns {string | undefined} The request URL, when available.
+ * Non-2xx answer as `getJSON` raises it, before `normalizeError` maps it into the hierarchy.
+ * It keeps the status and the body text the hierarchy would otherwise have to parse back out of
+ * a message.
  */
-function getFetchErrorUrl(error: FetchError): string | undefined {
-  const request = error.request;
-  return typeof request === "string" ? request : request?.url;
-}
+export class ResponseError extends Error {
+  readonly statusCode: number;
+  readonly url: string;
+  readonly body: string;
 
-/**
- * Extract a JSON-safe response body from an ofetch failure.
- *
- * @param error ofetch failure.
- * @returns {string | undefined} The response body, when available.
- */
-function getFetchErrorBody(error: FetchError): string | undefined {
-  if (typeof error.data === "string") return error.data;
-  if (error.data === undefined) return undefined;
-  try {
-    return JSON.stringify(error.data);
-  } catch {
-    return String(error.data);
+  constructor(statusCode: number, url: string, body: string) {
+    super(`HTTP ${statusCode} from ${url}`);
+    this.statusCode = statusCode;
+    this.url = url;
+    this.body = body;
+    this.name = "ResponseError";
   }
 }
 
@@ -196,9 +186,7 @@ export function normalizeError(error: unknown, provider?: string, requestUrl?: s
 
   const message = messageOf(error);
   const lowerMessage = message.toLowerCase();
-  const fetchError = fetchErrorOf(error);
-  const status = statusOf(fetchError, message);
-  const url = urlOf(fetchError, requestUrl);
+  const { status, url, body } = describeFailure(error, message, requestUrl);
   const kind = classifyFailure(status, lowerMessage, url !== undefined);
 
   switch (kind) {
@@ -215,7 +203,7 @@ export function normalizeError(error: unknown, provider?: string, requestUrl?: s
       return authError(url, status, message, provider);
     }
     case "transport": {
-      return new HTTPError(status, unit(url), bodyOf(fetchError, message), provider);
+      return new HTTPError(status, unit(url), body, provider);
     }
     default: {
       return new UrlsError(message, provider);
@@ -269,38 +257,33 @@ function messageOf(error: unknown): string {
 }
 
 /**
- * Narrow an unknown failure to an ofetch failure, if it is one.
+ * Read status, request URL, and body from a failure: a `ResponseError` carries all three, any
+ * other failure only what its message and the caller give.
  *
  * @param error Unknown failure.
- * @returns {FetchError | undefined} The fetch failure, when the failure came from ofetch.
+ * @param message Original failure message.
+ * @param requestUrl Request URL when the failure did not carry one.
+ * @returns {object} The HTTP status (0 when unknown), the URL when known, and the body or message.
  */
-function fetchErrorOf(error: unknown): FetchError | undefined {
-  return error instanceof FetchError ? error : undefined;
+function describeFailure(
+  error: unknown,
+  message: string,
+  requestUrl: string | undefined,
+): { readonly status: number; readonly url: string | undefined; readonly body: string } {
+  if (!(error instanceof ResponseError)) {
+    return { status: statusOf(message), url: requestUrl, body: message };
+  }
+  return { status: error.statusCode, url: requestUrl ?? error.url, body: error.body || message };
 }
 
 /**
- * Read the HTTP status from an ofetch failure or an embedded `HTTP NNN` message.
+ * Read the HTTP status from an embedded `HTTP NNN` message.
  *
- * @param fetchError ofetch failure, when present.
  * @param message Original failure message.
  * @returns {number} The HTTP status, or 0 when none is known.
  */
-function statusOf(fetchError: FetchError | undefined, message: string): number {
-  return fetchError?.statusCode ?? Number(message.match(/HTTP (\d{3})/i)?.[1] ?? 0);
-}
-
-/**
- * Resolve the request URL carried by the failure or the caller.
- *
- * @param fetchError ofetch failure, when present.
- * @param requestUrl Caller-provided request URL.
- * @returns {string | undefined} The request URL, when known.
- */
-function urlOf(
-  fetchError: FetchError | undefined,
-  requestUrl: string | undefined,
-): string | undefined {
-  return requestUrl ?? (fetchError ? getFetchErrorUrl(fetchError) : undefined);
+function statusOf(message: string): number {
+  return Number(message.match(/HTTP (\d{3})/i)?.[1] ?? 0);
 }
 
 /**
@@ -311,17 +294,6 @@ function urlOf(
  */
 function unit(provider: string | undefined): string {
   return provider ?? "unknown";
-}
-
-/**
- * Resolve the response body carried by the failure, falling back to the message.
- *
- * @param fetchError ofetch failure, when present.
- * @param message Original failure message.
- * @returns {string} The response body or the message.
- */
-function bodyOf(fetchError: FetchError | undefined, message: string): string {
-  return (fetchError ? getFetchErrorBody(fetchError) : undefined) ?? message;
 }
 
 /**

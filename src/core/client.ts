@@ -1,7 +1,6 @@
 /** HTTP client wrapper for Urls providers */
 
-import { ofetch } from "ofetch";
-import { normalizeError } from "./errors.ts";
+import { normalizeError, ResponseError } from "./errors.ts";
 import { version } from "../version.ts";
 
 /** Identifying User-Agent: passive sources log anonymous traffic per their usage policies. */
@@ -19,8 +18,12 @@ export interface ClientOptions {
  * Fetch JSON with Urls headers and a 30-second default timeout.
  *
  * Passive enumeration can legitimately take longer than an interactive read; the default is
- * twice the family's interactive default. The timeout is composed with the caller's signal
- * rather than passed to ofetch, which ignores its own timeout once a signal is set.
+ * twice the family's interactive default. The timeout is composed with the caller's signal.
+ *
+ * Plain `fetch`, like `getTextLines`: these GET requests use nothing a wrapper adds, and
+ * loading one would land on every Pi and OMP first call and every MCP start. The body is parsed
+ * whatever the content type says, so a non-JSON answer fails as an error instead of passing
+ * through as a string. A non-2xx answer keeps its body text for `HTTPError`.
  *
  * Transport failures are normalized before they leave this boundary; a caller abort is
  * rethrown as the caller's reason.
@@ -31,7 +34,7 @@ export interface ClientOptions {
  */
 export async function getJSON<T>(url: string, options?: ClientOptions): Promise<T> {
   try {
-    return await ofetch<T>(url, {
+    const response = await fetch(url, {
       method: "GET",
       headers: {
         Accept: "application/json",
@@ -39,8 +42,13 @@ export async function getJSON<T>(url: string, options?: ClientOptions): Promise<
         ...options?.headers,
       },
       signal: combinedSignal(options, 30_000),
-      retry: false,
+      redirect: "follow",
     });
+    if (!response.ok) {
+      const body = await response.text().catch(() => "");
+      throw new ResponseError(response.status, url, body);
+    }
+    return (await response.json()) as T;
   } catch (error) {
     options?.signal?.throwIfAborted();
     throw normalizeError(error, options?.provider, url);
@@ -50,9 +58,8 @@ export async function getJSON<T>(url: string, options?: ClientOptions): Promise<
 /**
  * Yield text lines from a streaming response, one line at a time.
  *
- * CDX dumps can reach tens of megabytes; `ofetch` would consume the whole body before
- * returning, so this helper uses plain `fetch` and classifies the status before reading any
- * body bytes. Callers break early (once a limit is hit) and the reader is cancelled. Requests
+ * CDX dumps can reach tens of megabytes, so this helper classifies the status before reading
+ * any body bytes. Callers break early (once a limit is hit) and the reader is cancelled. Requests
  * carry a 60-second default timeout, composed with the caller's own signal when one is given;
  * a caller abort surfaces as the caller's reason whether it lands before or during the body.
  *

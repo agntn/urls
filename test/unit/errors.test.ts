@@ -1,10 +1,10 @@
-import { createFetchError, FetchError } from "ofetch";
 import { describe, expect, it } from "vitest";
 import {
   AuthError,
   HTTPError,
   PaymentError,
   RateLimitError,
+  ResponseError,
   UrlsError,
   normalizeError,
 } from "../../src/core/errors.ts";
@@ -38,25 +38,19 @@ describe("normalizeError", () => {
   });
 
   it("maps 401 and 403 to AuthError", () => {
-    const error = new FetchError("HTTP 401", "https://api.example.com", {
-      statusCode: 401,
-    });
+    const error = new ResponseError(401, "https://api.example.com", "");
 
     expect(normalizeError(error, "virustotal")).toBeInstanceOf(AuthError);
   });
 
   it("maps 402 to PaymentError", () => {
-    const error = new FetchError("HTTP 402", "https://api.example.com", {
-      statusCode: 402,
-    });
+    const error = new ResponseError(402, "https://api.example.com", "");
 
     expect(normalizeError(error, "urlscan")).toBeInstanceOf(PaymentError);
   });
 
   it("maps 429 to RateLimitError and reads retry-after", () => {
-    const error = new FetchError("HTTP 429", "https://api.example.com", {
-      statusCode: 429,
-    });
+    const error = new ResponseError(429, "https://api.example.com", "");
 
     const normalized = normalizeError(error, "urlscan");
     expect(normalized).toBeInstanceOf(RateLimitError);
@@ -73,14 +67,11 @@ describe("normalizeError", () => {
   });
 
   it("maps transport failures to HTTPError without a status", () => {
-    // Construct the error the way ofetch does at runtime, so the request getter exists.
-    const error = createFetchError({
-      request: new Request("https://index.commoncrawl.org/collinfo.json"),
-      options: { method: "GET" },
-      error: new Error("fetch failed"),
-    });
-
-    const normalized = normalizeError(error, "commoncrawl");
+    const normalized = normalizeError(
+      new TypeError("fetch failed"),
+      "commoncrawl",
+      "https://index.commoncrawl.org/collinfo.json",
+    );
     expect(normalized).toBeInstanceOf(HTTPError);
     expect((normalized as HTTPError).statusCode).toBe(0);
     expect(normalized.message).toContain("index.commoncrawl.org");
