@@ -82,9 +82,44 @@ check(
   hugeLimit.stderr,
 );
 
-for (const sub of ["discover", "providers"]) {
-  const help = run([sub, "--help"]);
-  check(`${sub} --help exits 0`, help.status === 0, help.stderr);
+/** Help must work without evaluating the server SDK, including Citty's root command listing. */
+const blockMcp = `data:text/javascript,${encodeURIComponent(`
+  import { registerHooks } from "node:module";
+  registerHooks({
+    load(url, context, nextLoad) {
+      if (url.includes("@modelcontextprotocol/")) throw new Error("Unexpected MCP SDK load");
+      return nextLoad(url, context);
+    }
+  });
+`)}`;
+
+for (const args of [
+  [],
+  ["--help"],
+  ["-h"],
+  ["--version"],
+  ["discover", "--help"],
+  ["providers", "--help"],
+  ["mcp", "--help"],
+  ["mcp", "-h"],
+  ["providers"],
+]) {
+  const help = run(args);
+  const expectedStatus = args.length === 0 ? 1 : 0;
+  const isolated = spawnSync("node", ["--import", blockMcp, CLI, ...args], {
+    encoding: "utf8",
+    env,
+    timeout: 10_000,
+  });
+  check(
+    `${args.join(" ") || "no arguments"} works without the MCP SDK`,
+    help.status === expectedStatus &&
+      isolated.status === expectedStatus &&
+      !isolated.stderr.includes("Unexpected MCP SDK load") &&
+      isolated.stderr === help.stderr &&
+      isolated.stdout === help.stdout,
+    isolated.stderr,
+  );
 }
 
 if (LIVE) {
