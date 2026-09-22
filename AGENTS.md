@@ -11,6 +11,8 @@ Keep AGENTS.md updated with project status.
   (tsc + extensions), unit tests, and the three eval gates (CLI, MCP, packed) in offline and
   live mode.
 - Global CLI (`urls`) installed and smoke-tested.
+- CLI help loads command metadata without the MCP SDK; the `mcp` command imports its server
+  and transport inside `run()`. `test/eval-cli.mjs` guards this boundary on the built CLI.
 - Agent surfaces (MCP, AI SDK, Pi, OMP) answer with bounded pages: `DEFAULT_DISCOVER_LIMIT`
   (100) unless `limit` says otherwise, `hasMore` and `truncated` on every page, `reference`
   opt-in on the JSON surfaces. Library and CLI stay unbounded.
