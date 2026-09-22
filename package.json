@@ -81,7 +81,7 @@
     "@oh-my-pi/omptype": "18.0.0",
     "@oh-my-pi/pi-coding-agent": "18.0.0",
     "@types/node": "26.2.0",
-    "ai": "7.0.66",
+    "ai": "7.0.107",
     "changelogen": "0.6.2",
     "obuild": "0.4.38",
     "oxfmt": "0.63.0",
