@@ -151,6 +151,8 @@ URLS_EVAL_OFFLINE=1 pnpm test:packed
 
 Omit `URLS_EVAL_OFFLINE=1` to include live discovery checks. Those depend on the upstream services being available.
 
+An MCP client pointed at `dist/cli.mjs mcp` in a checkout runs the server straight from `src/`, so a restart picks up your change without `pnpm build`. Only an edit to `src/cli.ts` itself needs a build. `URLS_DIST=1` pins the bundle.
+
 ## 💛 Thanks
 
 [ProjectDiscovery's urlfinder](https://github.com/projectdiscovery/urlfinder) inspired this package. Same useful question, now in TypeScript.

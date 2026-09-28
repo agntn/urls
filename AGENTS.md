@@ -22,6 +22,8 @@ Keep AGENTS.md updated with project status.
   `@oh-my-pi/pi-coding-agent` root at runtime. Compiled OMP injects no `/tui`, so importing
   `renderStatusLine` from there stopped the whole extension from loading on omp 18.2.11; the unit
   test now throws on that import.
+- A local MCP server needs a restart, not `pnpm build`: inside a checkout `dist/cli.mjs` loads the
+  `mcp` command from `src/` (see Conventions). `test/eval-cli.mjs` proves both modes and each guard.
 
 ## Stack
 
@@ -76,6 +78,13 @@ test/eval-cli.mjs etc.     - packaged/CLI/MCP subprocess gates
   call and MCP start. CDX-style dumps go through `getTextLines` (status classified before body
   read, early break cancels the reader, 60s default timeout); JSON through `getJSON` (body parsed
   whatever the content type, a non-2xx keeps its text as `HTTPError.body`, 30s default timeout).
+- Local MCP from source: `src/cli.ts` imports the `mcp` command from a runtime URL of
+  `src/commands/mcp.ts` when the bin is built, `URLS_DIST` is not `1`, the path has no
+  `node_modules` segment (Node refuses to strip types there) and the file exists (the npm package
+  ships only `dist`). Otherwise it takes the bundled command. Every runtime import on that path is
+  a `dependency`, so no devDependency guard. `test/eval-mcp.mjs` sets `URLS_DIST=1` to keep testing
+  the bundle. Relative imports end in `.ts` and `erasableSyntaxOnly` holds, or plain Node cannot
+  run `src/`.
 - Cancellation: every provider request takes `options.signal`, composed with the timeout in the
   client; a caller abort surfaces as the caller's reason. MCP (`extra.signal`), AI SDK
   (`abortSignal`), Pi and OMP (`execute` third argument) hand over the host's signal.

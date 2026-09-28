@@ -14,7 +14,7 @@ const CLI = fileURLToPath(new URL("../dist/cli.mjs", import.meta.url));
 const LIVE = process.env.URLS_EVAL_OFFLINE !== "1";
 
 /** Credentials are dropped so provider auto-selection stays deterministic. */
-const env = { ...process.env, DEBUG: "1" };
+const env = { ...process.env, DEBUG: "1", URLS_DIST: "1" };
 delete env.VIRUSTOTAL_API_KEY;
 delete env.URLSCAN_API_KEY;
 
