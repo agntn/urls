@@ -5,7 +5,7 @@ import { stripVTControlCharacters } from "node:util";
 
 import type { AgentToolResult, ExtensionAPI } from "@oh-my-pi/pi-coding-agent";
 import { Text } from "@oh-my-pi/pi-coding-agent";
-import { renderStatusLine } from "@oh-my-pi/pi-coding-agent/tui";
+import type { Theme } from "@oh-my-pi/pi-coding-agent/modes/theme/theme";
 
 import type * as UrlsModule from "../../../dist/index.d.mts";
 
@@ -106,30 +106,31 @@ export default function urlsExtension(pi: ExtensionAPI): void {
   type RenderCallOptions = { readonly isPartial?: boolean; readonly spinnerFrame?: number };
 
   /**
-   * Build the status-line payload. The host `theme` stays on `renderCall` so its type is
-   * inferred and `ignoreInferredTypes` applies — no `Parameters<>` alias, no disable.
+   * Render the status line with the host theme. The `/tui` barrel stays off the load path:
+   * compiled OMP does not inject it, and the checkout copy dies on `@oh-my-pi/pi-tui`.
    *
    * @param title Tool title.
    * @param description Short call description.
    * @param options Render state.
-   * @returns {object} The payload `renderStatusLine` expects as its first argument.
+   * @param theme Host theme passed to `renderCall`.
+   * @returns {Text} One themed status line.
    */
-  function statusPayload(
+  function statusLine(
     title: string,
     description: string,
     options: RenderCallOptions,
-  ): Parameters<typeof renderStatusLine>[0] {
+    theme: Theme,
+  ): Text {
     const icon = options.isPartial
       ? options.spinnerFrame === undefined
-        ? "pending"
-        : "running"
-      : "done";
-    return {
-      icon,
-      spinnerFrame: options.spinnerFrame,
-      title,
-      description: sanitizeTerminalText(description),
-    };
+        ? theme.styledSymbol("status.pending", "muted")
+        : (theme.spinnerFrames[options.spinnerFrame % theme.spinnerFrames.length] ??
+          theme.styledSymbol("status.running", "accent"))
+      : theme.styledSymbol("status.done", "success");
+    const detail = sanitizeTerminalText(description);
+    const heading = theme.fg("accent", title);
+
+    return new Text(`${icon} ${heading}${detail ? `: ${theme.fg("muted", detail)}` : ""}`, 0, 0);
   }
 
   const discoverParameters = Type.Object({
@@ -210,11 +211,7 @@ export default function urlsExtension(pi: ExtensionAPI): void {
     parameters: discoverParameters,
     approval: "read",
     renderCall(args, options, theme) {
-      return new Text(
-        renderStatusLine(statusPayload("Urls Discover", String(args.domain), options), theme),
-        0,
-        0,
-      );
+      return statusLine("Urls Discover", String(args.domain), options, theme);
     },
     async execute(_toolCallId, params, signal): Promise<UrlsToolResult> {
       const lib = await loadLibrary();
@@ -248,11 +245,7 @@ export default function urlsExtension(pi: ExtensionAPI): void {
     parameters: providersParameters,
     approval: "read",
     renderCall(_args, options, theme) {
-      return new Text(
-        renderStatusLine(statusPayload("Urls Providers", "list", options), theme),
-        0,
-        0,
-      );
+      return statusLine("Urls Providers", "list", options, theme);
     },
     async execute(): Promise<UrlsToolResult> {
       const lib = await loadLibrary();

@@ -1,11 +1,9 @@
 import * as TypeBox from "@oh-my-pi/omptype/typebox";
 import type { ExtensionAPI, ExtensionContext, ToolDefinition } from "@oh-my-pi/pi-coding-agent";
+import type { Theme } from "@oh-my-pi/pi-coding-agent/modes/theme/theme";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-/**
- * The host serves these modules to loaded extensions at runtime; under vitest the renderers are
- * exercised against capturing stand-ins instead of the OMP TUI.
- */
+/** Only the root module is injected by the host; the TUI barrel must stay off the load path. */
 vi.mock("@oh-my-pi/pi-coding-agent", () => ({
   Text: class {
     constructor(
@@ -13,11 +11,15 @@ vi.mock("@oh-my-pi/pi-coding-agent", () => ({
       readonly paddingX?: number,
       readonly paddingY?: number,
     ) {}
+
+    render(): string[] {
+      return [this.text];
+    }
   },
 }));
-vi.mock("@oh-my-pi/pi-coding-agent/tui", () => ({
-  renderStatusLine: (options: unknown) => JSON.stringify(options),
-}));
+vi.mock("@oh-my-pi/pi-coding-agent/tui", () => {
+  throw new Error("The OMP host does not inject the TUI barrel");
+});
 
 import { requireTool, stubHanging, stubJSON } from "../helpers.ts";
 import { DEFAULT_DISCOVER_LIMIT } from "../../src/core/types.ts";
@@ -76,6 +78,32 @@ describe("urls OMP extension", () => {
     expect([...tools.keys()]).toEqual(["urls_discover", "urls_providers"]);
     for (const tool of tools.values()) expect(tool.approval).toBe("read");
   });
+
+  it.each([
+    [false, undefined, "success:status.done"],
+    [true, undefined, "muted:status.pending"],
+    [true, 3, "frame-1"],
+  ] as const)(
+    "renders the host theme for partial=%s, frame=%s",
+    (isPartial, spinnerFrame, icon) => {
+      const tool = requireTool(registerExtensionTools().tools, "urls_discover");
+      const theme = {
+        fg: (color: string, text: string) => `${color}(${text})`,
+        styledSymbol: (symbol: string, color: string) => `${color}:${symbol}`,
+        spinnerFrames: ["frame-0", "frame-1"],
+      } as unknown as Theme;
+      const escape = String.fromCodePoint(27);
+      const component = tool.renderCall?.(
+        { domain: `example${escape}[31m\n.com` },
+        { expanded: false, isPartial, spinnerFrame },
+        theme,
+      );
+
+      expect(component?.render(120)).toEqual([
+        `${icon} accent(Urls Discover): muted(example .com)`,
+      ]);
+    },
+  );
 
   it("declares an integer discover limit from 1 through 100000", () => {
     const tool = requireTool(registerExtensionTools().tools, "urls_discover");

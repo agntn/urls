@@ -18,6 +18,10 @@ Keep AGENTS.md updated with project status.
   opt-in on the JSON surfaces. Library and CLI stay unbounded.
 - No HTTP client dependency: `getJSON` moved to plain `fetch`, so importing the library (the Pi and
   OMP first call) dropped from 41 to 6 ms and MCP start to `tools/list` from 193 to 161 ms.
+- The OMP extension draws its status line with the host `theme` and imports only the
+  `@oh-my-pi/pi-coding-agent` root at runtime. Compiled OMP injects no `/tui`, so importing
+  `renderStatusLine` from there stopped the whole extension from loading on omp 18.2.11; the unit
+  test now throws on that import.
 
 ## Stack
 
