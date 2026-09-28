@@ -37,8 +37,8 @@ importers:
         specifier: 26.2.0
         version: 26.2.0
       ai:
-        specifier: 7.0.113
-        version: 7.0.113(zod@4.4.3)
+        specifier: 7.0.114
+        version: 7.0.114(zod@4.4.3)
       changelogen:
         specifier: 0.6.2
         version: 0.6.2
@@ -74,8 +74,8 @@ packages:
       oxlint: '>=1.78.0'
       oxlint-tsgolint: '>=7.0.2001'
 
-  '@ai-sdk/gateway@4.0.91':
-    resolution: {integrity: sha512-bUjtlAh1wV8aiYIOuPK4mBA3oAd7cETU4A1oTXNCkjGagZJvFfj+hx4b1ZaF5gHL0IPa6KfmIvZ0VVKhAlapVg==}
+  '@ai-sdk/gateway@4.0.92':
+    resolution: {integrity: sha512-awX24+QedfcIDTAdwkCUNG08vPJjkQI9KZLGh4Ua+vNbgeaNFJre96OIbBefOD9XPHSVpdXjwqtWmo4Yh7oczw==}
     engines: {node: '>=22'}
     peerDependencies:
       zod: ^3.25.76 || ^4.1.8
@@ -1522,8 +1522,8 @@ packages:
     resolution: {integrity: sha512-MnA+YT8fwfJPgBx3m60MNqakm30XOkyIoH1y6huTQvC0PwZG7ki8NacLBcrPbNoo8vEZy7Jpuk7+jMO+CUovTQ==}
     engines: {node: '>= 14'}
 
-  ai@7.0.113:
-    resolution: {integrity: sha512-hOowAtiIUXwRqcdVRXll6ToNHYDdfXg+sFF1kYPlNDlgZ63rjR4mp1O29n5lSWZUNcHM1TlSzs30+6/XDUVcAA==}
+  ai@7.0.114:
+    resolution: {integrity: sha512-jRMOw7tPMWVYomoHWY5xHBXPQDyKTY1Pn3BX0Rh39UOP6y9FYq6xCIB6khgIC/b9CRg4+IxadwIbie+Eu7yU3g==}
     engines: {node: '>=22'}
     peerDependencies:
       zod: ^3.25.76 || ^4.1.8
@@ -2954,7 +2954,7 @@ snapshots:
       oxlint: 1.78.0(oxlint-tsgolint@7.0.2001)
       oxlint-tsgolint: 7.0.2001
 
-  '@ai-sdk/gateway@4.0.91(zod@4.4.3)':
+  '@ai-sdk/gateway@4.0.92(zod@4.4.3)':
     dependencies:
       '@ai-sdk/provider': 4.0.18
       '@ai-sdk/provider-utils': 5.0.47(zod@4.4.3)
@@ -4254,9 +4254,9 @@ snapshots:
 
   agent-base@7.1.4: {}
 
-  ai@7.0.113(zod@4.4.3):
+  ai@7.0.114(zod@4.4.3):
     dependencies:
-      '@ai-sdk/gateway': 4.0.91(zod@4.4.3)
+      '@ai-sdk/gateway': 4.0.92(zod@4.4.3)
       '@ai-sdk/provider': 4.0.18
       '@ai-sdk/provider-utils': 5.0.47(zod@4.4.3)
       zod: 4.4.3
