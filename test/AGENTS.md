@@ -9,4 +9,5 @@ Tests exercise public behavior and real integration seams with Vitest.
 - Keep the suite hermetic: `test/setup.ts` clears provider keys, stubs must return
   `Content-Type` headers matching the response kind.
 - Eval gates (`test/eval-*.mjs`) run against the built `dist`; `URLS_EVAL_OFFLINE=1` keeps CI
-  deterministic.
+  deterministic. Inside a checkout the built bin serves MCP from `src/`, so `eval-mcp.mjs` sets
+  `URLS_DIST=1` for the bundle and `eval-cli.mjs` checks both modes.
