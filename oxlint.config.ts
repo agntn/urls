@@ -17,7 +17,7 @@ export default defineConfig({
           },
           {
             from: "package",
-            name: ["ExtensionAPI", "ToolDefinition"],
+            name: ["ExtensionAPI", "Theme", "ToolDefinition"],
             package: "@oh-my-pi/pi-coding-agent",
           },
           {
