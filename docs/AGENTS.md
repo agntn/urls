@@ -33,7 +33,7 @@ pnpm deploy                           # build, then wrangler deploy to urls.agnt
 node scripts/record-landing.ts        # refresh the landing samples (live network)
 ```
 
-Deployment: Nitro preset `cloudflare_module`. Nuxt Content needs a D1 binding named `DB` and the response cache a KV binding named `CACHE`. `wrangler.jsonc` carries both with zeroed ids: create them once with `wrangler d1 create agntn-urls` and `wrangler kv namespace create CACHE`, then put the ids in.
+Deployment: Nitro preset `cloudflare_module`. Nuxt Content needs a D1 binding named `DB` and the response cache a KV binding named `CACHE`. `wrangler.jsonc` binds both to `agntn-urls`: the D1 database lives in the EU jurisdiction, which the binding doesn't repeat because the id already names it.
 
 The site bundles `@agntn/urls` from `../src` through the alias in `nuxt.config.ts`, so it needs neither `dist/` nor the root `node_modules`. The part of `src/` the site imports has no npm dependency today. A new package import under `src/core` or `src/providers` needs the same entry in `docs/package.json`, or the Workers build fails while a local build still passes.
 

@@ -27,8 +27,8 @@ Keep AGENTS.md updated with project status.
   the pipe before the first write.
 - Docs site in `docs/` (Docus on Cloudflare Workers, urls.agntn.dev): guide, one page per source,
   and `/discover`, an explorer over `runDiscoverPage`. It bundles `src/` through an alias, has its
-  own lockfile and `AGENTS.md`, and stays out of the root lint. D1 and KV ids in
-  `docs/wrangler.jsonc` are zeroed until the resources exist.
+  own lockfile and `AGENTS.md`, and stays out of the root lint. D1 (EU jurisdiction) and KV are
+  both `agntn-urls`.
 - A local MCP server needs a restart, not `pnpm build`: inside a checkout `dist/cli.mjs` loads the
   `mcp` command from `src/` (see Conventions). `test/eval-cli.mjs` proves both modes and each guard.
 
