@@ -30,7 +30,7 @@ Keep AGENTS.md updated with project status.
 
 ## Stack
 
-- **Runtime**: Node.js 26 dev baseline, >= 24 supported
+- **Runtime**: Node.js >= 26
 - **Language**: TypeScript (strict, `erasableSyntaxOnly`)
 - **Build**: obuild (one bundle; every provider file is a separate lazy input, `dist/providers/*.mjs`)
 - **Registry**: lazy manifest (`builtins` in `src/providers/index.ts`); `create()` is async,

@@ -24,7 +24,7 @@ Wayback remembers one URL, OTX knows another. Now you're writing seven clients f
 
 ## 📦 Install
 
-Requires Node.js 24 or later.
+Requires Node.js 26 or later.
 
 ```bash
 pnpm add @agntn/urls
