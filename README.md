@@ -7,6 +7,8 @@
 
 🗂️ Seven passive sources. Find URLs for a domain with one API.
 
+Docs, one page per source and a live explorer: [urls.agntn.dev](https://urls.agntn.dev). The explorer runs the same tool your agent gets.
+
 ## Why?
 
 Wayback remembers one URL, OTX knows another. Now you're writing seven clients for what sounded like one question. `@agntn/urls` gives them the same API and filters. The web has enough abandoned URLs without adding your glue code to the pile.
@@ -142,6 +144,7 @@ pnpm build       # Build the library, CLI, and provider modules
 pnpm test        # Run unit tests
 pnpm lint        # Check code and formatting
 pnpm typecheck   # Check library and extension types
+pnpm docs        # Docs site with the explorer, from docs/
 
 # Exercise CLI, MCP, and the packed package without live discovery
 URLS_EVAL_OFFLINE=1 pnpm test:cli

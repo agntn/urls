@@ -25,6 +25,10 @@ Keep AGENTS.md updated with project status.
 - A reader that quits early (`urls providers | head -1`) ends the CLI quietly: `src/cli.ts` exits
   on `EPIPE` from stdout or stderr and rethrows any other stream error. `test/eval-cli.mjs` closes
   the pipe before the first write.
+- Docs site in `docs/` (Docus on Cloudflare Workers, urls.agntn.dev): guide, one page per source,
+  and `/discover`, an explorer over `runDiscoverPage`. It bundles `src/` through an alias, has its
+  own lockfile and `AGENTS.md`, and stays out of the root lint. D1 (EU jurisdiction) and KV are
+  both `agntn-urls`.
 - A local MCP server needs a restart, not `pnpm build`: inside a checkout `dist/cli.mjs` loads the
   `mcp` command from `src/` (see Conventions). `test/eval-cli.mjs` proves both modes and each guard.
 
@@ -52,6 +56,7 @@ Keep AGENTS.md updated with project status.
 - `pnpm fmt` - build + auto-fix lint + format
 - `pnpm typecheck` - base tsc + extensions tsc
 - `pnpm release` - test, build, changelogen release
+- `pnpm docs` / `pnpm docs:build` - docs site dev server and Workers build, from `docs/`
 
 ## Structure
 
@@ -64,6 +69,7 @@ src/commands/              - discover, providers, mcp
 src/ai.ts, src/mcp.ts      - AI SDK and MCP surfaces over the same executors
 packages/pi/extensions/    - Pi extension source shipped with the package
 packages/omp/extensions/   - OMP extension source shipped with the package
+docs/                      - Docus site for urls.agntn.dev; own install, see docs/AGENTS.md
 test/unit/                 - vitest unit tests
 test/eval-cli.mjs etc.     - packaged/CLI/MCP subprocess gates
 ```

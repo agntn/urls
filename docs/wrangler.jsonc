@@ -1,0 +1,35 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "agntn-urls",
+  "account_id": "6ef8d3cbe19975e93d994f25228488e7",
+  "compatibility_flags": ["nodejs_compat"],
+  "vars": {
+    "NUXT_SITE_URL": "https://urls.agntn.dev"
+  },
+  "workers_dev": true,
+  "preview_urls": true,
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "agntn-urls",
+      "database_id": "a306ef8a-475b-4ef4-8de9-779c97f1909d"
+    }
+  ],
+  "kv_namespaces": [
+    {
+      "binding": "CACHE",
+      "id": "91526f4d7d134ce9b6de650ef7ff2fb4"
+    }
+  ],
+  "ratelimits": [
+    {
+      "name": "DISCOVER_LIMIT",
+      "namespace_id": "3301",
+      "simple": { "limit": 20, "period": 60 }
+    }
+  ],
+  "cache": {
+    "enabled": true
+  },
+  "routes": [{ "pattern": "urls.agntn.dev", "custom_domain": true }]
+}
