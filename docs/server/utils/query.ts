@@ -226,7 +226,7 @@ export async function cachedAnswer<T>(
   await assertRateLimit(event);
   const { value, degraded } = await produce();
   const seconds = degraded ? DEGRADED_TTL : ttl;
-  await storage.setItem(key, { value, expires: Date.now() + seconds * 1000 }).catch(() => undefined);
+  await storage.setItem(key, { value, expires: Date.now() + seconds * 1000 }, { ttl: seconds }).catch(() => undefined);
   markPublic(event, seconds);
   return value;
 }
