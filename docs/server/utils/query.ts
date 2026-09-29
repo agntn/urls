@@ -144,24 +144,48 @@ export function markPublic(event: H3Event, seconds: number): void {
   setResponseHeader(event, "Cache-Control", `public, max-age=${seconds}, stale-while-revalidate=${seconds * 4}`);
 }
 
-/** Uncached discovery requests one client may start per minute; cache hits are free. */
+/** Uncached discovery requests one client may start per minute; `ratelimits` in wrangler.jsonc carries the same number. */
 export const RATE_LIMIT = 20;
 
+/** The Workers Rate Limiting binding: Cloudflare keeps the count, so concurrent misses can't race it. */
+interface RateLimiter {
+  limit(options: { key: string }): Promise<{ success: boolean }>;
+}
+
+/** Fallback for `nuxt dev` without the binding: one counter per isolate, incremented synchronously. */
+const localCounts = new Map<string, number>();
+
 /**
- * Counts the discovery requests a client starts in the current minute and refuses the ones past the limit.
+ * The address a request came from, as Cloudflare saw it. `X-Forwarded-For` is left out: its first
+ * entry is whatever the caller sent, so it would let one client rotate its own key.
  *
- * Only a cache miss counts, and the sources behind the worker see at most this many new
- * questions from one address.
+ * @param {H3Event} event - The request.
+ * @returns {string} The client address, or `unknown`.
+ */
+function clientAddress(event: H3Event): string {
+  return getRequestHeader(event, "cf-connecting-ip") ?? getRequestIP(event) ?? "unknown";
+}
+
+/**
+ * Refuses a discovery request past the per-minute limit for its address. Only a cache miss
+ * counts, so the sources behind the worker see at most this many new questions from one address.
+ *
+ * @param {H3Event} event - The request.
  */
 export async function assertRateLimit(event: H3Event): Promise<void> {
-  const ip = getRequestIP(event, { xForwardedFor: true }) ?? getRequestHeader(event, "cf-connecting-ip") ?? "unknown";
-  const minute = Math.floor(Date.now() / 60_000);
-  const key = `docs:rate:${hash(ip)}:${minute}`;
-  const storage = useStorage("cache");
-  const count = Number((await storage.getItem<number>(key).catch(() => 0)) ?? 0) + 1;
-  await storage.setItem(key, count, { ttl: 120 }).catch(() => undefined);
-  if (count > RATE_LIMIT) {
-    setResponseHeader(event, "Retry-After", 60 - (Math.floor(Date.now() / 1000) % 60));
+  const key = hash(clientAddress(event));
+  const limiter = (event.context.cloudflare?.env as { DISCOVER_LIMIT?: RateLimiter } | undefined)?.DISCOVER_LIMIT;
+  let allowed: boolean;
+  if (limiter) {
+    allowed = (await limiter.limit({ key })).success;
+  } else {
+    const slot = `${key}:${Math.floor(Date.now() / 60_000)}`;
+    const count = (localCounts.get(slot) ?? 0) + 1;
+    localCounts.set(slot, count);
+    allowed = count <= RATE_LIMIT;
+  }
+  if (!allowed) {
+    setResponseHeader(event, "Retry-After", 60);
     throw createError({
       statusCode: 429,
       statusMessage: `More than ${RATE_LIMIT} new discovery requests in a minute from one address. Cached answers don't count, so wait a moment or repeat an earlier query.`,

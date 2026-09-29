@@ -21,6 +21,13 @@
       "id": "91526f4d7d134ce9b6de650ef7ff2fb4"
     }
   ],
+  "ratelimits": [
+    {
+      "name": "DISCOVER_LIMIT",
+      "namespace_id": "3301",
+      "simple": { "limit": 20, "period": 60 }
+    }
+  ],
   "cache": {
     "enabled": true
   },
