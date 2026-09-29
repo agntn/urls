@@ -5,7 +5,8 @@
  * path. Set URLS_EVAL_OFFLINE=1 to skip the live block. Common Crawl's index host is
  * unreachable from the development network; wayback is exercised live too when online.
  */
-import { spawnSync } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
+import { once } from "node:events";
 import { cpSync, mkdirSync, mkdtempSync, rmSync, symlinkSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -85,6 +86,23 @@ check(
   "discover rejects a limit above MAX_DISCOVER_RESULTS",
   hugeLimit.status === 1 && hugeLimit.stderr.includes("Invalid limit: 100001"),
   hugeLimit.stderr,
+);
+
+/** A reader that quits early, as `| head -1` does, ends the command without a stack trace. */
+const closedStdout = spawn("node", [CLI, "providers"], {
+  env,
+  stdio: ["ignore", "pipe", "pipe"],
+  timeout: 10_000,
+});
+// Closing the read end before the child writes makes its first write fail with EPIPE.
+closedStdout.stdout.destroy();
+let closedStderr = "";
+closedStdout.stderr.setEncoding("utf8").on("data", (chunk) => (closedStderr += chunk));
+await once(closedStdout, "close");
+check(
+  "providers ends quietly when stdout closes",
+  closedStdout.exitCode === 0 && closedStderr === "",
+  `exit=${closedStdout.exitCode} ${closedStderr}`,
 );
 
 /** Help must work without evaluating the server SDK, including Citty's root command listing. */

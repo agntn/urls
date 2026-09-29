@@ -22,6 +22,9 @@ Keep AGENTS.md updated with project status.
   `@oh-my-pi/pi-coding-agent` root at runtime. Compiled OMP injects no `/tui`, so importing
   `renderStatusLine` from there stopped the whole extension from loading on omp 18.2.11; the unit
   test now throws on that import.
+- A reader that quits early (`urls providers | head -1`) ends the CLI quietly: `src/cli.ts` exits
+  on `EPIPE` from stdout or stderr and rethrows any other stream error. `test/eval-cli.mjs` closes
+  the pipe before the first write.
 - A local MCP server needs a restart, not `pnpm build`: inside a checkout `dist/cli.mjs` loads the
   `mcp` command from `src/` (see Conventions). `test/eval-cli.mjs` proves both modes and each guard.
 
