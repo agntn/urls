@@ -14,7 +14,7 @@
     "unified",
     "url-discovery"
   ],
-  "homepage": "https://github.com/agntn/urls#readme",
+  "homepage": "https://urls.agntn.dev",
   "bugs": "https://github.com/agntn/urls/issues",
   "license": "MIT",
   "author": "oritwoen (https://github.com/oritwoen)",
@@ -67,7 +67,9 @@
     "test:mcp": "pnpm build && node test/eval-mcp.mjs",
     "test:packed": "node test/eval-packed.mjs",
     "prepack": "pnpm run build",
-    "release": "pnpm test && pnpm build && changelogen --release --push"
+    "release": "pnpm test && pnpm build && changelogen --release --push",
+    "docs": "pnpm --dir docs dev",
+    "docs:build": "pnpm --dir docs build"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "1.30.1",

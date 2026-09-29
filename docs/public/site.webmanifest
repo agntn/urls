@@ -1,0 +1,13 @@
+{
+  "name": "@agntn/urls",
+  "short_name": "urls",
+  "description": "Passive URL discovery over web archives and threat intel indexes, for agents and the CLI",
+  "start_url": "/",
+  "display": "browser",
+  "background_color": "#0b0d10",
+  "theme_color": "#0b0d10",
+  "icons": [
+    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png" }
+  ]
+}
