@@ -35,8 +35,6 @@ pnpm add @agntn/urls
 pnpm add -g @agntn/urls
 ```
 
-The npm release is pending. These commands will work once the package is published.
-
 ## 🚀 First call
 
 After installing the CLI:
@@ -103,7 +101,7 @@ Discovery results stay separate when comparing sources. Limits apply per source,
 
 ## 🤖 Agents
 
-Once the npm release is available, pick your host:
+Pick your host:
 
 ```bash
 pi install npm:@agntn/urls
