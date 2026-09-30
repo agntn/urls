@@ -1,8 +1,6 @@
 # Changelog
 
-
 ## v0.2.0
-
 
 ### 🚀 Enhancements
 
@@ -47,11 +45,11 @@
 
 - Align packaging and docs with agntn family ([2557ba4](https://github.com/agntn/urls/commit/2557ba4))
 - Add `renovate.json` ([fdbad59](https://github.com/agntn/urls/commit/fdbad59))
-- ⚠️  Stop supporting Node.js 24 ([#32](https://github.com/agntn/urls/pull/32))
+- ⚠️ Stop supporting Node.js 24 ([#32](https://github.com/agntn/urls/pull/32))
 
 #### ⚠️ Breaking Changes
 
-- ⚠️  Stop supporting Node.js 24 ([#32](https://github.com/agntn/urls/pull/32))
+- ⚠️ Stop supporting Node.js 24 ([#32](https://github.com/agntn/urls/pull/32))
 
 ### ❤️ Contributors
 
@@ -59,4 +57,3 @@
 - Aeitwoen ([@aeitwoen](https://github.com/aeitwoen))
 - Aei ([@aeitwoen](https://github.com/aeitwoen))
 - Oritwoen ([@oritwoen](https://github.com/oritwoen))
-
