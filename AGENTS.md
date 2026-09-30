@@ -29,6 +29,9 @@ Keep AGENTS.md updated with project status.
   and `/discover`, an explorer over `runDiscoverPage`. It bundles `src/` through an alias, has its
   own lockfile and `AGENTS.md`, and stays out of the root lint. D1 (EU jurisdiction) and KV are
   both `agntn-urls`.
+- v0.2.0 is the first public release (0.1.0 on npm was a test run). It reached npm with provenance
+  through a manual Publish dispatch: a tag checkout needs `--no-git-checks`, and a rerun would
+  reuse the broken workflow from the tag, so `publish.yml` takes `workflow_dispatch` with a `tag`.
 - A local MCP server needs a restart, not `pnpm build`: inside a checkout `dist/cli.mjs` loads the
   `mcp` command from `src/` (see Conventions). `test/eval-cli.mjs` proves both modes and each guard.
 
