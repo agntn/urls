@@ -8,12 +8,19 @@ on:
   push:
     tags:
       - "v*"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing tag to publish, for example v0.2.0
+        required: true
 
 jobs:
   publish:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.tag || github.ref }}
 
       - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
 
@@ -27,4 +34,5 @@ jobs:
 
       - run: pnpm test
 
-      - run: pnpm publish
+      # A tag checkout has no branch, so the default main-only git check always fails
+      - run: pnpm publish --no-git-checks
