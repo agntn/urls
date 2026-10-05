@@ -32,6 +32,8 @@ Keep AGENTS.md updated with project status.
 - v0.2.0 is the first public release (0.1.0 on npm was a test run). It reached npm with provenance
   through a manual Publish dispatch: a tag checkout needs `--no-git-checks`, and a rerun would
   reuse the broken workflow from the tag, so `publish.yml` takes `workflow_dispatch` with a `tag`.
+  The input is checked out as `refs/tags/<tag>`, so `tag=main` fails instead of publishing `main`;
+  `test/unit/release.test.ts` pins that line.
 - A local MCP server needs a restart, not `pnpm build`: inside a checkout `dist/cli.mjs` loads the
   `mcp` command from `src/` (see Conventions). `test/eval-cli.mjs` proves both modes and each guard.
 
