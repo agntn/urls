@@ -166,14 +166,59 @@ function clientAddress(event: H3Event): string {
   return getRequestHeader(event, "cf-connecting-ip") ?? getRequestIP(event) ?? "unknown";
 }
 
+/** `::ffff:1.2.3.4` after the URL parser: one IPv4 client, not a /64 shared by all of them. */
+const IPV4_MAPPED = /^::ffff:[\da-f]{1,4}:[\da-f]{1,4}$/;
+
 /**
- * Refuses a discovery request past the per-minute limit for its address. Only a cache miss
- * counts, so the sources behind the worker see at most this many new questions from one address.
+ * The eight groups of a canonical IPv6 address, `::` filled with zeros.
+ *
+ * @param {string} host - An address as the URL parser spells it.
+ * @returns {string[]} Its groups, still in hex.
+ */
+function ipv6Groups(host: string): string[] {
+  const [head = "", tail] = host.split("::");
+  const left = head === "" ? [] : head.split(":");
+  if (tail === undefined) return left;
+  const right = tail === "" ? [] : tail.split(":");
+  return [...left, ...Array<string>(8 - left.length - right.length).fill("0"), ...right];
+}
+
+/**
+ * An IPv6 address in the one spelling the URL parser settles on, so `0DB8` and `db8` agree.
+ *
+ * @param {string} address - Whatever the header said.
+ * @returns {string | undefined} The canonical address, or undefined when it isn't IPv6.
+ */
+function canonicalIPv6(address: string): string | undefined {
+  try {
+    const { hostname } = new URL(`http://[${address}]/`);
+    return hostname.startsWith("[") ? hostname.slice(1, -1) : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+/**
+ * IPv4 counts by address, IPv6 by its /64: one routed prefix hands out 2^64 fresh addresses.
+ *
+ * @param {string} address - The client address.
+ * @returns {string} What the limit counts.
+ */
+function rateLimitSubject(address: string): string {
+  const host = address.includes(":") ? canonicalIPv6(address) : undefined;
+  if (host === undefined) return address;
+  if (IPV4_MAPPED.test(host)) return host;
+  return `${ipv6Groups(host).slice(0, 4).join(":")}::/64`;
+}
+
+/**
+ * Refuses a discovery request past the per-minute limit for its address, or its /64 on IPv6.
+ * Only a cache miss counts, so the sources behind the worker see at most this many new questions.
  *
  * @param {H3Event} event - The request.
  */
 export async function assertRateLimit(event: H3Event): Promise<void> {
-  const key = hash(clientAddress(event));
+  const key = hash(rateLimitSubject(clientAddress(event)));
   const limiter = (event.context.cloudflare?.env as { DISCOVER_LIMIT?: RateLimiter } | undefined)?.DISCOVER_LIMIT;
   let allowed: boolean;
   if (limiter) {
@@ -188,7 +233,7 @@ export async function assertRateLimit(event: H3Event): Promise<void> {
     setResponseHeader(event, "Retry-After", 60);
     throw createError({
       statusCode: 429,
-      statusMessage: `More than ${RATE_LIMIT} new discovery requests in a minute from one address. Cached answers don't count, so wait a moment or repeat an earlier query.`,
+      statusMessage: `More than ${RATE_LIMIT} new discovery requests in a minute from one address, or one /64 on IPv6. Cached answers don't count, so wait a moment or repeat an earlier query.`,
     });
   }
 }

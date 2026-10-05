@@ -40,7 +40,7 @@ The site bundles `@agntn/urls` from `../src` through the alias in `nuxt.config.t
 ## Live data
 
 - `server/api/discover.get.ts` calls `runDiscoverPage`, the executor behind `urls_discover`. With `provider=all` it runs one call per source, each with its own 35 s deadline, and assembles the `serializeOutcomes` shape itself: one slow source would otherwise sink the whole comparison.
-- Every route goes through `cachedAnswer` in `server/utils/query.ts`: exact parameters as the key, six hours for a clean answer, five minutes for one with a failed source. A cache miss counts against the `DISCOVER_LIMIT` rate limiting binding (20 a minute per `CF-Connecting-IP`, the number repeated as `RATE_LIMIT`); hits are free. Don't bypass it, the sources are public services. Without the binding, as in `nuxt dev`, a counter per isolate stands in.
+- Every route goes through `cachedAnswer` in `server/utils/query.ts`: exact parameters as the key, six hours for a clean answer, five minutes for one with a failed source. A cache miss counts against the `DISCOVER_LIMIT` rate limiting binding (20 a minute per `CF-Connecting-IP`, or per /64 for an IPv6 client, the number repeated as `RATE_LIMIT`); hits are free. Don't bypass it, the sources are public services. Without the binding, as in `nuxt dev`, a counter per isolate stands in. `test/unit/docs-rate-limit.test.ts` in the root pins how an address becomes a key.
 - Parameters are capped in `server/utils/query.ts` (`limit` 100, 16 items per list). Raise them there.
 - No API key is configured on the worker. VirusTotal answers with the library's `AuthError`, URLScan runs at its public quota.
 - A client that disconnects aborts its sources and ends as a 499, which the error log skips.
