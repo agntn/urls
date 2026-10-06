@@ -62,6 +62,12 @@ describe("registry", () => {
     await expect(create("missing")).rejects.toThrow(UnknownProviderError);
   });
 
+  it("names the registered providers when the key is unknown", async () => {
+    await expect(create("wayback-machine")).rejects.toThrow(
+      `Unknown provider: wayback-machine; known providers: ${providers().join(", ")}`,
+    );
+  });
+
   it("reports default endpoints", () => {
     expect(getDefaultURL("wayback")).toBe("https://web.archive.org");
     expect(getDefaultURL("missing")).toBeUndefined();

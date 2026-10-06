@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { UnknownProviderError } from "../../src/core/errors.ts";
+import { providers } from "../../src/core/registry.ts";
 import { isAllProviders, resolveProvider, selectProvider } from "../../src/core/resolve.ts";
 import "../../src/providers/index.ts";
 
@@ -14,6 +15,12 @@ describe("resolveProvider", () => {
 
   it("throws UnknownProviderError for an unknown explicit provider", () => {
     expect(() => resolveProvider("missing")).toThrow(UnknownProviderError);
+  });
+
+  it("names the registered providers next to an unknown one", () => {
+    expect(() => resolveProvider("wayback-machine")).toThrow(
+      `Unknown provider: wayback-machine; known providers: ${providers().join(", ")}`,
+    );
   });
 
   it("defaults to the keyless alienvault source", () => {
