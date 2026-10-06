@@ -35,7 +35,7 @@ export function isAllProviders(preferred?: string): boolean {
 export function resolveProvider(preferred?: string): string {
   if (preferred) {
     if (!has(preferred)) {
-      throw new UnknownProviderError(preferred);
+      throw new UnknownProviderError(preferred, providers());
     }
     return preferred;
   }

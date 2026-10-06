@@ -96,10 +96,11 @@ export class UnsupportedOperationError extends UrlsError {
   }
 }
 
-/** Registry does not contain the requested provider name. */
+/** Unknown provider key. The message lists the keys that would have worked. */
 export class UnknownProviderError extends UrlsError {
-  constructor(provider: string) {
-    super(`Unknown provider: ${provider}`, provider);
+  constructor(provider: string, known: readonly string[] = []) {
+    const listed = known.length === 0 ? "" : `; known providers: ${known.join(", ")}`;
+    super(`Unknown provider: ${provider}${listed}`, provider);
     this.name = "UnknownProviderError";
   }
 }
