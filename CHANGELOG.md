@@ -1,5 +1,29 @@
 # Changelog
 
+## v0.2.1
+
+[compare changes](https://github.com/agntn/urls/compare/v0.2.0...v0.2.1)
+
+### 🩹 Fixes
+
+- **ci:** Publish from a tag checkout ([#35](https://github.com/agntn/urls/pull/35))
+- **ci:** Keep main out of the publish dispatch ([#41](https://github.com/agntn/urls/pull/41))
+- **docs:** Stop a /64 from posing as a crowd ([#43](https://github.com/agntn/urls/pull/43))
+- List the known providers when one is unknown ([#44](https://github.com/agntn/urls/pull/44))
+
+### 📖 Documentation
+
+- Drop the pending npm release notes ([#36](https://github.com/agntn/urls/pull/36))
+
+### 🏡 Chore
+
+- Add `CODEOWNERS` ([#45](https://github.com/agntn/urls/pull/45))
+
+### ❤️ Contributors
+
+- Ori ([@oritwoen](https://github.com/oritwoen))
+- Aeitwoen ([@aeitwoen](https://github.com/aeitwoen))
+
 ## v0.2.0
 
 ### 🚀 Enhancements
