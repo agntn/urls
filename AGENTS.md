@@ -36,6 +36,9 @@ Keep AGENTS.md updated with project status.
   `test/unit/release.test.ts` pins that line.
 - A local MCP server needs a restart, not `pnpm build`: inside a checkout `dist/cli.mjs` loads the
   `mcp` command from `src/` (see Conventions). `test/eval-cli.mjs` proves both modes and each guard.
+- `@agntn/*` skips pnpm's one-day `minimumReleaseAge` (`pnpm-workspace.yaml`, #37). On pnpm 11.3.0
+  a clean `pnpm i --frozen-lockfile` refused `@agntn/tools@0.2.1` four hours after it shipped. These
+  are our own packages, so one scope pattern covers every sibling and every bump, no pin per version.
 
 ## Stack
 
