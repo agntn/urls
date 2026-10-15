@@ -7,9 +7,9 @@ import type { AgentToolResult, ExtensionAPI } from "@oh-my-pi/pi-coding-agent";
 import { Text } from "@oh-my-pi/pi-coding-agent";
 import type { Theme } from "@oh-my-pi/pi-coding-agent/modes/theme/theme";
 
-import type * as UrlsModule from "../../../dist/index.d.mts";
+import type * as UrlsModule from "../../dist/index.d.mts";
 
-const sourceModulePath = fileURLToPath(new URL("../../../src/index.ts", import.meta.url));
+const sourceModulePath = fileURLToPath(new URL("../../src/index.ts", import.meta.url));
 let urlsModulePromise: Promise<typeof UrlsModule> | undefined;
 
 /**
@@ -23,8 +23,8 @@ let urlsModulePromise: Promise<typeof UrlsModule> | undefined;
  */
 function loadLibrary(): Promise<typeof UrlsModule> {
   urlsModulePromise ??= existsSync(sourceModulePath)
-    ? (import("../../../src/index.ts") as unknown as Promise<typeof UrlsModule>)
-    : (import("../../../dist/index.mjs") as Promise<typeof UrlsModule>);
+    ? (import("../../src/index.ts") as unknown as Promise<typeof UrlsModule>)
+    : (import("../../dist/index.mjs") as Promise<typeof UrlsModule>);
 
   return urlsModulePromise;
 }

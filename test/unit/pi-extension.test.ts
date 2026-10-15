@@ -7,7 +7,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { Value } from "typebox/value";
 import { requireTool, stubHanging, stubJSON } from "../helpers.ts";
 import { DEFAULT_DISCOVER_LIMIT } from "../../src/core/types.ts";
-import urlsExtension from "../../packages/pi/extensions/urls.ts";
+import urlsExtension from "../../extensions/pi/urls.ts";
 
 /**
  * Register the extension's tools against a capturing fake host.

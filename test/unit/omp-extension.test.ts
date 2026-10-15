@@ -23,7 +23,7 @@ vi.mock("@oh-my-pi/pi-coding-agent/tui", () => {
 
 import { requireTool, stubHanging, stubJSON } from "../helpers.ts";
 import { DEFAULT_DISCOVER_LIMIT } from "../../src/core/types.ts";
-import urlsOmpExtension from "../../packages/omp/extensions/urls.ts";
+import urlsOmpExtension from "../../extensions/omp/urls.ts";
 
 interface RegisteredExtension {
   label: string | undefined;

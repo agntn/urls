@@ -5,10 +5,10 @@ import { fileURLToPath } from "node:url";
 import type { AgentToolResult, ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { Type } from "typebox";
 
-import type * as UrlsModule from "../../../dist/index.d.mts";
+import type * as UrlsModule from "../../dist/index.d.mts";
 
-const sourceModuleUrl = new URL("../../../src/index.ts", import.meta.url);
-const distributionModuleUrl = new URL("../../../dist/index.mjs", import.meta.url);
+const sourceModuleUrl = new URL("../../src/index.ts", import.meta.url);
+const distributionModuleUrl = new URL("../../dist/index.mjs", import.meta.url);
 let urlsModulePromise: Promise<typeof UrlsModule> | undefined;
 
 /**
