@@ -75,8 +75,8 @@ src/tool-operations.ts     - shared discovery executors: runDiscover (explicit /
                              and the bounded runDiscoverPage the agent surfaces use
 src/commands/              - discover, providers, mcp
 src/ai.ts, src/mcp.ts      - AI SDK and MCP surfaces over the same executors
-packages/pi/extensions/    - Pi extension source shipped with the package
-packages/omp/extensions/   - OMP extension source shipped with the package
+extensions/pi/    - Pi extension source shipped with the package
+extensions/omp/   - OMP extension source shipped with the package
 docs/                      - Docus site for urls.agntn.dev; own install, see docs/AGENTS.md
 test/unit/                 - vitest unit tests
 test/eval-cli.mjs etc.     - packaged/CLI/MCP subprocess gates
