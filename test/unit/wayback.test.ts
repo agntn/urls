@@ -75,13 +75,24 @@ describe("wayback provider", () => {
       urlScope: [
         "https://example.com/docs",
         "http://example.com/docs/api",
-        "https://www.example.com/docs",
+        "https://example.com/docs",
       ],
     });
 
     expect(
       fetch.mock.calls.map((call) => new URL(String(call[0])).searchParams.get("url")),
     ).toEqual(["example.com/docs"]);
+  });
+
+  it("leaves www on the host for the archive to fold", async () => {
+    const fetch = stubText("");
+
+    await (
+      await create("wayback")
+    ).discover("example.com", { urlScope: ["https://www.www.example.com/docs"] });
+
+    const query = new URL(String(fetch.mock.calls[0]?.[0])).searchParams;
+    expect(query.get("url")).toBe("www.www.example.com/docs");
   });
 
   it.each([

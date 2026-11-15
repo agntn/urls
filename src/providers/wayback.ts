@@ -66,7 +66,7 @@ function scopePrefix(pattern: string, target: string): string | undefined {
   const path = match?.[2] ?? "/";
   if (!host || host.split(".").includes("") || UNSAFE_PATH.test(path)) return undefined;
   if (!inScope(`https://${host}/`, target)) return undefined;
-  return `${host.replace(/^www\./u, "")}${path}`;
+  return `${host}${path}`;
 }
 
 /**
