@@ -31,7 +31,7 @@ const NOTES: Readonly<Record<string, ProviderNotes>> = {
     icon: "i-lucide-landmark",
     path: "/wayback/cdx",
     format: "CDX NDJSON",
-    paging: "one request, 10 000 rows",
+    paging: "one request, or one per urlScope prefix, 10 000 rows each",
     about: "The Portuguese web archive. CDX with dates, and a hard cap per request.",
   },
   commoncrawl: {
@@ -56,7 +56,7 @@ const NOTES: Readonly<Record<string, ProviderNotes>> = {
     icon: "i-lucide-mountain-snow",
     path: "/cdx",
     format: "CDX NDJSON",
-    paging: "one request, the whole domain dump",
+    paging: "one request for the whole dump, or one per urlScope prefix",
     about: "The Icelandic web archive. Ignores limit and sends everything, the collector stops it.",
   },
   virustotal: {
