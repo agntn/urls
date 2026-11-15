@@ -73,7 +73,7 @@ const NOTES: Readonly<Record<string, ProviderNotes>> = {
     icon: "i-simple-icons-internetarchive",
     path: "/cdx/search/cdx",
     format: "CDX text",
-    paging: "one streamed request",
+    paging: "one streamed request, or one per urlScope prefix",
     about: "The Internet Archive's CDX index. One streamed answer with dates, subdomains included.",
   },
 };
