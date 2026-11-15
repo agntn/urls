@@ -7,6 +7,10 @@
  * Verified 2026-09-02: `output=txt` is rejected; `limit` is ignored and the full domain dump
  * streams; `fields=url` keeps each line to the URL. Early `break` cancels the reader.
  *
+ * Verified 2026-11-15: `matchType=prefix` folds case, scheme, port and `www.` like Wayback, so a
+ * `urlScope` asks for its prefixes alone. `ruv.is/frettir/` came back as 25 MB in 33 s, every
+ * row under that path, where the domain-wide dump has no `limit` to stop it.
+ *
  * API: https://vefsafn.is/cdx (REST, NDJSON)
  */
 
@@ -18,6 +22,8 @@ import type {
 } from "../core/types.ts";
 import { Provider } from "../core/provider.ts";
 import { buildQuery } from "../core/client.ts";
+import { cdxScopeQueries } from "../core/cdx-scope.ts";
+import type { CdxScopeQuery } from "../core/cdx-scope.ts";
 import { UrlCollector, extractUrls, resolveDomain } from "../core/url.ts";
 import { parseCdxNdjsonLine } from "../core/url-shape.ts";
 
@@ -39,16 +45,35 @@ export class Vefsafn extends Provider {
     const target = resolveDomain(domain, "vefsafn");
     const collector = new UrlCollector(options, domain);
 
+    for (const query of cdxScopeQueries(target, options?.urlScope)) {
+      if (collector.done) break;
+      await this.#collect(query, collector, options?.signal);
+    }
+
+    return collector.results;
+  }
+
+  /**
+   * Stream one CDX query into the collector.
+   *
+   * @param query `url` and `matchType` of the request.
+   * @param collector Shared per-call collector.
+   * @param signal Caller abort signal.
+   */
+  async #collect(
+    query: CdxScopeQuery,
+    collector: UrlCollector,
+    signal: AbortSignal | undefined,
+  ): Promise<void> {
     const apiURL = `${this.baseUrl}/cdx${buildQuery({
-      url: target,
-      matchType: "domain",
+      ...query,
       output: "json",
       fields: "url,timestamp",
     })}`;
 
     for await (const line of this.getTextLines(apiURL, {
       headers: { Accept: "application/x-ndjson, application/json, */*" },
-      signal: options?.signal,
+      signal,
     })) {
       if (collector.done) break;
       if (!line.trim()) continue;
@@ -58,7 +83,5 @@ export class Vefsafn extends Provider {
         collector.push(this.name, extracted, apiURL, parsed.timestamp);
       }
     }
-
-    return collector.results;
   }
 }

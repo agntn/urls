@@ -134,10 +134,10 @@ test/eval-cli.mjs etc.     - packaged/CLI/MCP subprocess gates
 | Source      | Verdict      | Notes                                                                                                                           |
 | ----------- | ------------ | ------------------------------------------------------------------------------------------------------------------------------- |
 | alienvault  | live         | `otx.alienvault.com/api/v1/indicators/domain/{d}/url_list`, paginated                                                           |
-| arquivo     | live         | `arquivo.pt/wayback/cdx` NDJSON `matchType=domain`; `output=txt` rejected; omit `limit` hangs; snapshot bodies stay in archives |
+| arquivo     | live         | `arquivo.pt/wayback/cdx` NDJSON `matchType=domain`, `prefix` per `urlScope`; `output=txt` rejected; omit `limit` hangs          |
 | wayback     | live         | `web.archive.org/cdx/search/cdx` text `matchType=domain`, `prefix` per `urlScope`; `collapse=urlkey` hangs, dedupe in collector |
 | urlscan     | live         | answers without key at small volumes; cursor pagination via `search_after`                                                      |
-| vefsafn     | live         | `vefsafn.is/cdx` NDJSON `matchType=domain`; `output=txt` rejected; `limit` ignored; snapshot bodies stay in archives            |
+| vefsafn     | live         | `vefsafn.is/cdx` NDJSON `matchType=domain`, `prefix` per `urlScope`; `output=txt` rejected; `limit` ignored                     |
 | virustotal  | live (v3)    | legacy `vtapi/v2` answers 403 HTML (dead); v3 `domains/{d}/urls` with `x-apikey`                                                |
 | commoncrawl | blocked here | `index.commoncrawl.org` refused here; tests mock HTTP; CDX URLs stay on configured origin                                       |
 

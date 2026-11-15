@@ -28,71 +28,10 @@ import type {
 } from "../core/types.ts";
 import { Provider } from "../core/provider.ts";
 import { buildQuery } from "../core/client.ts";
-import { UrlCollector, extractUrls, inScope, resolveDomain } from "../core/url.ts";
+import { cdxScopeQueries } from "../core/cdx-scope.ts";
+import type { CdxScopeQuery } from "../core/cdx-scope.ts";
+import { UrlCollector, extractUrls, resolveDomain } from "../core/url.ts";
 import { parseCdxTextLine } from "../core/url-shape.ts";
-
-/** More prefixes than this cost more round trips than one domain-wide stream. */
-const MAX_SCOPE_REQUESTS = 8;
-
-/** Empty and dot segments, which the archive would not keep as written. */
-const UNSAFE_PATH = /\/\/|\/\.{1,2}(?:\/|$)/u;
-
-/** Host, then an optional path the urlkey keeps as written: no query, port or escapes. */
-const SCOPE_PREFIX = /^https?:\/\/([a-z0-9.-]+)(\/[a-z0-9._~/-]*)?$/u;
-
-/**
- * The part of a URL-scope pattern every kept URL starts with, cut where the host is whole.
- *
- * @param pattern Lowercased `urlScope` pattern.
- * @returns {string} Literal head, or empty when a glob cuts the host short.
- */
-function literalHead(pattern: string): string {
-  const star = pattern.indexOf("*");
-  if (star === -1) return pattern;
-  const head = pattern.slice(0, star);
-  return head.slice(head.indexOf("//") + 2).includes("/") ? head : "";
-}
-
-/**
- * Turn one URL-scope pattern into a CDX prefix under the target domain.
- *
- * @param pattern `urlScope` pattern.
- * @param target Resolved domain.
- * @returns {string | undefined} `host/path` for `matchType=prefix`, or undefined to ask broadly.
- */
-function scopePrefix(pattern: string, target: string): string | undefined {
-  const match = SCOPE_PREFIX.exec(literalHead(pattern.trim().toLowerCase()));
-  const host = match?.[1];
-  const path = match?.[2] ?? "/";
-  if (!host || host.split(".").includes("") || UNSAFE_PATH.test(path)) return undefined;
-  if (!inScope(`https://${host}/`, target)) return undefined;
-  return `${host}${path}`;
-}
-
-/**
- * CDX `url` values that together cover every URL the scope can keep.
- *
- * @param target Resolved domain.
- * @param urlScope Caller `urlScope` patterns.
- * @returns {string[] | undefined} Prefixes to ask for, or undefined for one domain-wide request.
- */
-function scopePrefixes(
-  target: string,
-  urlScope: readonly string[] | undefined,
-): string[] | undefined {
-  if (!urlScope || urlScope.length === 0) return undefined;
-  const prefixes = new Set<string>();
-  for (const pattern of urlScope) {
-    const prefix = scopePrefix(pattern, target);
-    if (prefix === undefined) return undefined;
-    prefixes.add(prefix);
-  }
-  const sorted = [...prefixes].toSorted();
-  const kept = sorted.filter(
-    (prefix, index) => !sorted.slice(0, index).some((other) => prefix.startsWith(other)),
-  );
-  return kept.length > MAX_SCOPE_REQUESTS ? undefined : kept;
-}
 
 export class Wayback extends Provider {
   static readonly key = "wayback";
@@ -111,12 +50,8 @@ export class Wayback extends Provider {
   async discover(domain: string, options?: DiscoverOptions): Promise<DiscoveredUrl[]> {
     const target = resolveDomain(domain, "wayback");
     const collector = new UrlCollector(options, domain);
-    const prefixes = scopePrefixes(target, options?.urlScope);
-    const queries = prefixes
-      ? prefixes.map((url) => ({ url, matchType: "prefix" }))
-      : [{ url: target, matchType: "domain" }];
 
-    for (const query of queries) {
+    for (const query of cdxScopeQueries(target, options?.urlScope)) {
       if (collector.done) break;
       await this.#collect(query, collector, options?.signal);
     }
@@ -128,13 +63,11 @@ export class Wayback extends Provider {
    * Stream one CDX query into the collector.
    *
    * @param query `url` and `matchType` of the request.
-   * @param query.url CDX `url` parameter.
-   * @param query.matchType CDX `matchType` parameter.
    * @param collector Shared per-call collector.
    * @param signal Caller abort signal.
    */
   async #collect(
-    query: Readonly<{ url: string; matchType: string }>,
+    query: CdxScopeQuery,
     collector: UrlCollector,
     signal: AbortSignal | undefined,
   ): Promise<void> {
