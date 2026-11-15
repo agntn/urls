@@ -108,7 +108,12 @@ describe("arquivo provider", () => {
   it("reports a cut when any one prefix fills the request cap", async () => {
     const full = Array.from({ length: 10_000 }, (_, i) => `{"url": "https://example.com/a/${i}"}`);
     const bodies = [`${full.join("\n")}\n`, '{"url": "https://example.com/b/1"}\n'];
-    const fetch = vi.fn(async (_input: string) => new Response(bodies.shift() ?? ""));
+    const fetch = vi.fn(
+      async (_input: string) =>
+        new Response(bodies.shift() ?? "", {
+          headers: { "Content-Type": "application/x-ndjson" },
+        }),
+    );
     vi.stubGlobal("fetch", fetch);
     const onTruncated = vi.fn();
 
