@@ -1,5 +1,4 @@
-import { Client } from "@modelcontextprotocol/sdk/client/index.js";
-import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
+import { Client, InMemoryTransport } from "@modelcontextprotocol/client";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import "../../src/providers/index.ts";
 import { createMcpServer } from "../../src/mcp.ts";
@@ -18,12 +17,9 @@ async function withServer(run: (client: Client) => Promise<void>) {
   }
 }
 
-async function firstText(
-  response: Readonly<{
-    content?: readonly { readonly type: string; readonly text?: string }[];
-  }>,
-) {
-  return response.content?.[0]?.text ?? "";
+function firstText(response: unknown): string {
+  const { content } = response as { content?: readonly { readonly text?: string }[] };
+  return content?.[0]?.text ?? "";
 }
 
 afterEach(() => {
@@ -31,12 +27,14 @@ afterEach(() => {
 });
 
 describe("urls MCP server", () => {
-  it("lists the two tools", async () => {
+  it("lists the two tools as read-only, each under its title", async () => {
     await withServer(async (client) => {
       const listed = await client.listTools();
-      const names = listed.tools.map((tool) => tool.name);
 
-      expect(names).toEqual(["urls_providers", "urls_discover"]);
+      expect(listed.tools.map((tool) => tool.name)).toEqual(["urls_providers", "urls_discover"]);
+      for (const tool of listed.tools) {
+        expect(tool.annotations).toMatchObject({ title: tool.title, readOnlyHint: true });
+      }
     });
   });
 
@@ -44,27 +42,16 @@ describe("urls MCP server", () => {
     await withServer(async (client) => {
       const response = await client.callTool({ name: "urls_providers", arguments: {} });
 
-      const text = await firstText(response);
-      expect(text).toContain('"name": "alienvault"');
-      expect(text).toContain('"requiresKey": true');
-      expect(text).toContain('"name": "wayback"');
+      const text = firstText(response);
+      expect(text).toMatch(/^Registered providers \(7\):/);
+      expect(text).toContain("  alienvault     https://otx.alienvault.com  (discover)");
+      expect(text).toContain("(requires API key)");
+      expect(text).toContain("  wayback ");
     });
   });
 
   it("discovers with the selected source and reports count", async () => {
-    vi.stubGlobal(
-      "fetch",
-      vi.fn(
-        async () =>
-          new Response(
-            JSON.stringify({ has_next: false, url_list: [{ url: "https://example.com/a" }] }),
-            {
-              status: 200,
-              headers: { "Content-Type": "application/json" },
-            },
-          ),
-      ),
-    );
+    stubJSON({ has_next: false, url_list: [{ url: "https://example.com/a" }] });
 
     await withServer(async (client) => {
       const response = await client.callTool({
@@ -72,13 +59,10 @@ describe("urls MCP server", () => {
         arguments: { domain: "example.com", provider: "alienvault" },
       });
 
-      const text = await firstText(response);
-      expect(text).toContain('"provider": "alienvault"');
-      expect(text).toContain('"count": 1');
-      expect(text).toContain('"limit": 100');
-      expect(text).toContain('"hasMore": false');
-      expect(text).toContain('"url": "https://example.com/a"');
-      expect(text).not.toContain('"reference"');
+      expect(response.isError).not.toBe(true);
+      expect(firstText(response)).toBe(
+        '[alienvault] 1 URLs for "example.com"\n  https://example.com/a',
+      );
     });
   });
 
@@ -94,11 +78,9 @@ describe("urls MCP server", () => {
         arguments: { domain: "example.com", provider: "alienvault", limit: 1 },
       });
 
-      const text = await firstText(response);
-      expect(text).toContain('"count": 1');
-      expect(text).toContain('"limit": 1');
-      expect(text).toContain('"hasMore": true');
-      expect(text).not.toContain("https://example.com/b");
+      expect(firstText(response)).toBe(
+        '[alienvault] 1 URLs for "example.com" (limit 1 reached; raise limit or narrow with match, ext, urlScope)\n  https://example.com/a',
+      );
     });
   });
 
@@ -111,7 +93,11 @@ describe("urls MCP server", () => {
         arguments: { domain: "example.com", provider: "alienvault", reference: true },
       });
 
-      expect(await firstText(response)).toContain('"reference": "https://otx.alienvault.com');
+      expect(firstText(response).split("\n")).toEqual([
+        '[alienvault] 1 URLs for "example.com"',
+        "  via https://otx.alienvault.com/api/v1/indicators/domain/example.com/url_list?page=1",
+        "  https://example.com/a",
+      ]);
     });
   });
 
@@ -122,7 +108,6 @@ describe("urls MCP server", () => {
       const controller = new AbortController();
       const pending = client.callTool(
         { name: "urls_discover", arguments: { domain: "example.com", provider: "alienvault" } },
-        undefined,
         { signal: controller.signal },
       );
       await vi.waitFor(() => expect(fetch).toHaveBeenCalled());
@@ -142,7 +127,19 @@ describe("urls MCP server", () => {
       });
 
       expect(response.isError).toBe(true);
-      expect(await firstText(response)).toContain("Invalid");
+      expect(firstText(response)).toBe('Invalid arguments at /domain: must match pattern "\\S"');
+    });
+  });
+
+  it("names an argument the schema doesn't know, with the ones it takes", async () => {
+    await withServer(async (client) => {
+      const response = await client.callTool({
+        name: "urls_discover",
+        arguments: { domain: "example.com", lmit: 2 },
+      });
+
+      expect(response.isError).toBe(true);
+      expect(firstText(response)).toContain('unknown property "lmit"; takes domain, limit');
     });
   });
 
@@ -154,7 +151,41 @@ describe("urls MCP server", () => {
       });
 
       expect(response.isError).toBe(true);
-      expect(await firstText(response)).toContain("Unknown provider: missing");
+      expect(firstText(response)).toContain("Unknown provider: missing");
+    });
+  });
+
+  it("strips an escape sequence a source put into a URL, whole", async () => {
+    const escape = String.fromCodePoint(27);
+    stubJSON({ has_next: false, url_list: [{ url: `https://example.com/${escape}[31mred` }] });
+
+    await withServer(async (client) => {
+      const response = await client.callTool({
+        name: "urls_discover",
+        arguments: { domain: "example.com", provider: "alienvault" },
+      });
+
+      expect(firstText(response)).toBe(
+        '[alienvault] 1 URLs for "example.com"\n  https://example.com/red',
+      );
+    });
+  });
+
+  /** The URL parser drops a newline, so the domain resolves and comes back in the header. */
+  it("keeps a crafted domain from writing its own line of the answer", async () => {
+    stubJSON({ has_next: false, url_list: [{ url: "https://example.com/a" }] });
+
+    await withServer(async (client) => {
+      const response = await client.callTool({
+        name: "urls_discover",
+        arguments: { domain: 'example.com/\n[wayback] 9 URLs for "x"', provider: "alienvault" },
+      });
+
+      expect(response.isError).not.toBe(true);
+      expect(firstText(response).split("\n")).toEqual([
+        '[alienvault] 1 URLs for "example.com/ [wayback] 9 URLs for "x""',
+        "  https://example.com/a",
+      ]);
     });
   });
 });

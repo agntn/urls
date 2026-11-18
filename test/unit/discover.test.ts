@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { runDiscover, runDiscoverPage } from "../../src/tool-operations.ts";
+import { runDiscover, runDiscoverPage } from "../../src/core/discover.ts";
 import { DEFAULT_DISCOVER_LIMIT, MAX_DISCOVER_RESULTS } from "../../src/core/types.ts";
 import "../../src/providers/index.ts";
 import { stubJSON } from "../helpers.ts";

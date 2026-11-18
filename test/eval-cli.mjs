@@ -7,7 +7,7 @@
  */
 import { spawn, spawnSync } from "node:child_process";
 import { once } from "node:events";
-import { cpSync, mkdirSync, mkdtempSync, rmSync, symlinkSync } from "node:fs";
+import { cpSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
@@ -53,10 +53,17 @@ check(
   providers.stdout,
 );
 
+const versionRun = run(["--version"]);
+check(
+  "--version prints the version of package.json",
+  versionRun.stdout.trim() === JSON.parse(readFileSync(join(ROOT, "package.json"), "utf8")).version,
+  versionRun.stdout,
+);
+
 const emptyDomain = run(["discover", ""]);
 check(
   "discover rejects an empty domain",
-  emptyDomain.status === 1 && emptyDomain.stderr.includes("Error"),
+  emptyDomain.status === 1 && emptyDomain.stderr.includes("Invalid arguments at <DOMAIN>"),
   emptyDomain.stderr,
 );
 
@@ -74,17 +81,25 @@ check(
   keyless.stderr,
 );
 
+const typo = run(["discover", "example.com", "--provder", "wayback"]);
+check(
+  "discover names a flag it doesn't know instead of skipping it",
+  typo.status === 1 && typo.stderr.includes('unknown option "--provder"; takes --provider (-p)'),
+  typo.stderr,
+);
+
 const badLimit = run(["discover", "example.com", "-n", "0"]);
 check(
   "discover rejects a non-positive limit",
-  badLimit.status === 1 && badLimit.stderr.includes("Invalid limit: 0"),
+  badLimit.status === 1 && badLimit.stderr.includes("Invalid arguments at --limit: must be >= 1"),
   badLimit.stderr,
 );
 
 const hugeLimit = run(["discover", "example.com", "-n", "100001"]);
 check(
   "discover rejects a limit above MAX_DISCOVER_RESULTS",
-  hugeLimit.status === 1 && hugeLimit.stderr.includes("Invalid limit: 100001"),
+  hugeLimit.status === 1 &&
+    hugeLimit.stderr.includes("Invalid arguments at --limit: must be <= 100000"),
   hugeLimit.stderr,
 );
 
@@ -105,7 +120,7 @@ check(
   `exit=${closedStdout.exitCode} ${closedStderr}`,
 );
 
-/** Help must work without evaluating the server SDK, including Citty's root command listing. */
+/** Help must work without evaluating the server SDK, the root command listing included. */
 const blockMcp = `data:text/javascript,${encodeURIComponent(`
   import { registerHooks } from "node:module";
   registerHooks({
@@ -150,7 +165,7 @@ for (const { mode, modeEnv } of [
   }
 }
 
-/** Prints every module URL the child loaded to stderr, after citty exits the process. */
+/** Prints every module URL the child loaded to stderr when the process exits. */
 const recordLoads = `data:text/javascript,${encodeURIComponent(`
   import { registerHooks } from "node:module";
   const loaded = [];
@@ -179,10 +194,11 @@ const initialize = `${JSON.stringify({
  * stdin closes after the request, so the server exits on its own.
  * @param {string} cli - Path of the bin to run.
  * @param {Readonly<Record<string, string>>} extraEnv - Environment on top of the shared one.
+ * @param {readonly string[]} flags - Node flags ahead of the bin.
  * @returns {{ initialized: boolean, loaded: string[], status: number | null, stderr: string }} The run.
  */
-function serve(cli, extraEnv = {}) {
-  const result = spawnSync("node", ["--import", recordLoads, cli, "mcp"], {
+function serve(cli, extraEnv = {}, flags = []) {
+  const result = spawnSync("node", [...flags, "--import", recordLoads, cli, "mcp"], {
     encoding: "utf8",
     env: { ...env, ...extraEnv },
     input: initialize,
@@ -201,14 +217,12 @@ function serve(cli, extraEnv = {}) {
  * Where a run took the server from.
  * @param {{ readonly loaded: readonly string[] }} run - A run of `serve`.
  * @param {string} base - Package root the bin sits in.
- * @returns {"source" | "bundle" | "unknown"} `src/mcp.ts` alone, `dist/mcp.mjs` alone, or neither.
+ * @returns {"source" | "bundle" | "unknown"} Whether the bin went on to load anything under `src/`.
  */
 function servedFrom(run, base) {
-  const source = run.loaded.includes(pathToFileURL(join(base, "src/mcp.ts")).href);
-  const bundle = run.loaded.includes(pathToFileURL(join(base, "dist/mcp.mjs")).href);
-  if (source && !bundle) return "source";
-  if (bundle && !source) return "bundle";
-  return "unknown";
+  if (!run.loaded.includes(pathToFileURL(join(base, "dist/cli.mjs")).href)) return "unknown";
+  const source = pathToFileURL(join(base, "src/")).href;
+  return run.loaded.some((url) => url.startsWith(source)) ? "source" : "bundle";
 }
 
 const checkoutRun = serve(CLI);
@@ -223,6 +237,20 @@ check(
   "mcp keeps the bundle under URLS_DIST=1",
   distRun.status === 0 && distRun.initialized && servedFrom(distRun, ROOT) === "bundle",
   distRun.stderr,
+);
+
+const unstripped = serve(CLI, {}, ["--no-experimental-strip-types"]);
+check(
+  "mcp keeps the bundle when Node does not strip types",
+  unstripped.status === 0 && unstripped.initialized && servedFrom(unstripped, ROOT) === "bundle",
+  unstripped.stderr,
+);
+
+const extraWord = run(["mcp", "--stdio"]);
+check(
+  "mcp with more on the line is refused, not served",
+  extraWord.status === 1 && extraWord.stderr.includes('unknown option "--stdio"'),
+  extraWord.stderr,
 );
 
 /** Node refuses to strip types under node_modules, so an installed copy that ships src keeps the bundle. */

@@ -1,13 +1,13 @@
 /**
- * Packed-package gate: pack the tarball, install it cleanly without peers, and prove the
- * published entries share one provider registry.
+ * Packed-package gate: pack the tarball, install it cleanly without peers, resolve it next to every
+ * host it names as a peer, and prove the published entries share one provider registry.
  *
  * This is the layer repository tests cannot see: a registry chunk split between dist entries, a
  * runtime dependency missing from `dependencies`, or a file dropped from `files` all surface
  * here first. Set URLS_EVAL_KEEP=1 to keep the temp install for manual inspection.
  */
 import { spawnSync } from "node:child_process";
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -33,12 +33,68 @@ check(
 );
 
 const dir = mkdtempSync(join(tmpdir(), "urls-packed-"));
+const manifest = JSON.parse(readFileSync(join(ROOT, "package.json"), "utf8"));
+
+/**
+ * The version of a package this checkout has installed.
+ *
+ * @param {string} name - Package name.
+ * @returns {string} Its installed version.
+ */
+function installed(name) {
+  return JSON.parse(readFileSync(join(ROOT, "node_modules", name, "package.json"), "utf8")).version;
+}
+
 const install = spawnSync(
   "npm",
-  ["install", "--legacy-peer-deps", "--no-audit", "--no-fund", join(ROOT, tarballName)],
+  [
+    "install",
+    "--legacy-peer-deps",
+    "--no-audit",
+    "--no-fund",
+    join(ROOT, tarballName),
+    `@modelcontextprotocol/client@${installed("@modelcontextprotocol/client")}`,
+  ],
   { cwd: dir, encoding: "utf8", timeout: 300_000 },
 );
-check("npm install of the tarball succeeds without peers", install.status === 0, install.stderr);
+check(
+  "npm install of the tarball and a test client succeeds without peers",
+  install.status === 0,
+  install.stderr,
+);
+
+/** Hosts at the versions this checkout runs, with no `--legacy-peer-deps` to hide an ERESOLVE. */
+const hosts = Object.keys(manifest.peerDependencies).map((name) => `${name}@${installed(name)}`);
+const hostDir = mkdtempSync(join(tmpdir(), "urls-hosts-"));
+writeFileSync(join(hostDir, "package.json"), "{}");
+const withHosts = spawnSync(
+  "npm",
+  [
+    "install",
+    "--dry-run",
+    "--legacy-peer-deps=false",
+    "--no-audit",
+    "--no-fund",
+    join(ROOT, tarballName),
+    ...hosts,
+  ],
+  { cwd: hostDir, encoding: "utf8", timeout: 300_000 },
+);
+rmSync(hostDir, { recursive: true, force: true });
+check(
+  `npm resolves the tarball next to ${hosts.join(", ")}`,
+  withHosts.status === 0,
+  withHosts.stderr,
+);
+
+const unpacked = spawnSync("tar", ["-tf", join(ROOT, tarballName)], { encoding: "utf8" });
+check(
+  "the tarball ships both extensions and the tool list they load",
+  ["extensions/pi/urls.ts", "extensions/omp/urls.ts", "dist/tools.mjs", "dist/tools.d.mts"].every(
+    (file) => unpacked.stdout.includes(`package/${file}\n`),
+  ),
+  unpacked.stdout,
+);
 
 /**
  * The probe registers a provider through the main entry and reads it back through the mcp
@@ -48,8 +104,7 @@ writeFileSync(
   join(dir, "probe.mjs"),
   `import { Provider, register } from "@agntn/urls";
 import { createMcpServer } from "@agntn/urls/mcp";
-import { Client } from "@modelcontextprotocol/sdk/client/index.js";
-import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
+import { Client, InMemoryTransport } from "@modelcontextprotocol/client";
 
 class Probe extends Provider {
   static key = "probe";
@@ -74,7 +129,7 @@ const response = await client.callTool({ name: "urls_providers", arguments: {} }
 const text = response.content[0].text;
 await client.close();
 await server.close();
-if (!text.includes('"probe"')) {
+if (!text.includes("\\n  probe ")) {
   console.error("registry split: probe missing from urls_providers");
   process.exit(1);
 }

@@ -1,4 +1,5 @@
 import {
+  formatDiscoverPages,
   normalizeUrl,
   urlExtension,
   urlQueryKeys,
@@ -20,7 +21,7 @@ export interface DiscoverSample {
 
 /**
  * Puts back the fields the recorder leaves out, in the key order `UrlCollector` writes them, so
- * the tool text of a recorded sample is the text the MCP server sent.
+ * a recorded sample reads like the records the executor returned.
  *
  * @param {DiscoveredUrl} record - A record as stored in `landing-samples.json`.
  * @returns {DiscoveredUrl} The record as the executor returned it.
@@ -168,13 +169,13 @@ function firstBranch(url: string): string {
 }
 
 /**
- * The page of one source as `urls_discover` prints it, or the comparison as a list of outcomes.
+ * The comparison as `urls_discover` prints it: a block per source, its URLs dated below.
  *
  * @param {DiscoverSample} sample - The comparison.
- * @returns {string} The MCP tool text for this call.
+ * @returns {string} The tool text for this call.
  */
 export function toolText(sample: DiscoverSample): string {
-  return JSON.stringify(sample.outcomes, null, 2);
+  return formatDiscoverPages(sample.target, sample.outcomes);
 }
 
 /** The records a sample carries, for filters that run on them in the browser. */

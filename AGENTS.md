@@ -11,20 +11,27 @@ Keep AGENTS.md updated with project status.
   (tsc + extensions), unit tests, and the three eval gates (CLI, MCP, packed) in offline and
   live mode.
 - Global CLI (`urls`) installed and smoke-tested.
-- CLI help loads command metadata without the MCP SDK; the `mcp` command imports its server
-  and transport inside `run()`. `test/eval-cli.mjs` guards this boundary on the built CLI.
+- Tools live once in `src/tools.ts` (`defineTool` from `@agntn/tools`); MCP, the AI SDK, Pi, OMP
+  and the CLI take that list through the adapters. Every host hands the model the same text from
+  `formatDiscoverPages`, and the pages ride along as `details` (AI SDK output, `providers --json`).
+  `test/unit/docs-samples.test.ts` holds that text under a third of the same pages as JSON.
+- CLI help loads without the MCP SDK; `runCli` imports the server only when `mcp` runs.
+  `test/eval-cli.mjs` guards this boundary on the built CLI.
 - Agent surfaces (MCP, AI SDK, Pi, OMP) answer with bounded pages: `DEFAULT_DISCOVER_LIMIT`
-  (100) unless `limit` says otherwise, `hasMore` and `truncated` on every page, `reference`
-  opt-in on the JSON surfaces. Library and CLI stay unbounded.
+  (100) unless `limit` says otherwise, the cut named on the block's first line, `hasMore` and
+  `truncated` in the details, `reference` opt-in on every host. Library and `urls discover` stay
+  unbounded.
 - No HTTP client dependency: `getJSON` moved to plain `fetch`, so importing the library (the Pi and
   OMP first call) dropped from 41 to 6 ms and MCP start to `tools/list` from 193 to 161 ms.
-- The OMP extension draws its status line with the host `theme` and imports only the
-  `@oh-my-pi/pi-coding-agent` root at runtime. Compiled OMP injects no `/tui`, so importing
-  `renderStatusLine` from there stopped the whole extension from loading on omp 18.2.11; the unit
-  test now throws on that import.
-- A reader that quits early (`urls providers | head -1`) ends the CLI quietly: `src/cli.ts` exits
-  on `EPIPE` from stdout or stderr and rethrows any other stream error. `test/eval-cli.mjs` closes
-  the pipe before the first write.
+- The OMP status line comes from `describeCall` and the adapter, drawn with `pi.pi.Text`; nothing
+  imports `@oh-my-pi/pi-coding-agent` at runtime. Compiled OMP injects no `/tui`, so the unit test
+  throws on that import.
+- A reader that quits early (`urls providers | head -1`) ends the CLI quietly: `runCli` exits on
+  `EPIPE` from stdout or stderr and rethrows any other stream error. `test/eval-cli.mjs` closes the
+  pipe before the first write.
+- Pi peer range is `>=0.84.2 <2` (#40): the packed extension ran in Pi 1.5.2 with a scripted
+  provider (a listing, a page, an auth failure, a missing `domain`) and in compiled omp 18.22.2.
+  `test/eval-packed.mjs` resolves the tarball next to every peer host at its dev pin.
 - Docs site in `docs/` (Docus on Cloudflare Workers, urls.agntn.dev): guide, one page per source,
   and `/discover`, an explorer over `runDiscoverPage`. It bundles `src/` through an alias, has its
   own lockfile and `AGENTS.md`, and stays out of the root lint. D1 (EU jurisdiction) and KV are
@@ -34,8 +41,8 @@ Keep AGENTS.md updated with project status.
   reuse the broken workflow from the tag, so `publish.yml` takes `workflow_dispatch` with a `tag`.
   The input is checked out as `refs/tags/<tag>`, so `tag=main` fails instead of publishing `main`;
   `test/unit/release.test.ts` pins that line.
-- A local MCP server needs a restart, not `pnpm build`: inside a checkout `dist/cli.mjs` loads the
-  `mcp` command from `src/` (see Conventions). `test/eval-cli.mjs` proves both modes and each guard.
+- A local MCP server needs a restart, not `pnpm build`: inside a checkout `dist/cli.mjs mcp` serves
+  `src/mcp.ts` (see Conventions). `test/eval-cli.mjs` proves both modes and each guard.
 - `@agntn/*` skips pnpm's one-day `minimumReleaseAge` (`pnpm-workspace.yaml`, #37). On pnpm 11.3.0
   a clean `pnpm i --frozen-lockfile` refused `@agntn/tools@0.2.1` four hours after it shipped. These
   are our own packages, so one scope pattern covers every sibling and every bump, no pin per version.
@@ -45,6 +52,9 @@ Keep AGENTS.md updated with project status.
 - **Runtime**: Node.js >= 26
 - **Language**: TypeScript (strict, `erasableSyntaxOnly`)
 - **Build**: obuild (one bundle; every provider file is a separate lazy input, `dist/providers/*.mjs`)
+- **Tools**: `@agntn/tools` 0.3 (bundled TypeBox, never a bare `typebox` import) on MCP SDK 2
+  (`@modelcontextprotocol/server`); citty, consola, zod and `@modelcontextprotocol/sdk` are gone
+  from `dependencies`
 - **Registry**: lazy manifest (`builtins` in `src/providers/index.ts`); `create()` is async,
   single-flight, retries a rejected load; `sideEffects: false`; subpath `./providers/*`
 - **Test**: vitest + `test/eval-*.mjs` subprocess gates
@@ -69,14 +79,19 @@ Keep AGENTS.md updated with project status.
 ## Structure
 
 ```
-src/core/                  - types, errors, client, registry, resolve, all, url helpers
+src/core/                  - types, errors, client, registry, resolve, all, url helpers, format
+src/core/discover.ts       - runDiscover (explicit / all / fallback) and the bounded
+                             runDiscoverPage; no `@agntn/tools`, the docs worker imports it
 src/providers/             - one file per passive source; lazy-loaded from the builtins manifest
-src/tool-operations.ts     - shared discovery executors: runDiscover (explicit / all / fallback)
-                             and the bounded runDiscoverPage the agent surfaces use
-src/commands/              - discover, providers, mcp
-src/ai.ts, src/mcp.ts      - AI SDK and MCP surfaces over the same executors
-extensions/pi/    - Pi extension source shipped with the package
-extensions/omp/   - OMP extension source shipped with the package
+src/tools.ts               - one defineTool per tool; executors behind a cached import()
+src/tool-operations.ts     - the tool executors: one sanitized text, the pages as details
+src/cli-commands.ts        - CLI-only `discover` and the options `runCli` gets
+src/cli-operations.ts      - behind `urls discover`: unbounded lines, comma lists, `--jsonl`
+src/cli.ts                 - runCli; a bare `mcp` in a checkout serves `src/mcp.ts`
+src/ai.ts, src/mcp.ts      - toAiTools and createMcpServer over the same list
+src/server-info.ts         - name, version, description for `--help` and MCP
+extensions/pi/             - registerPiTools over dist/tools.mjs (src/tools.ts in a checkout)
+extensions/omp/            - registerOmpTools; both import() specifiers stay literal
 docs/                      - Docus site for urls.agntn.dev; own install, see docs/AGENTS.md
 test/unit/                 - vitest unit tests
 test/eval-cli.mjs etc.     - packaged/CLI/MCP subprocess gates
@@ -95,16 +110,31 @@ test/eval-cli.mjs etc.     - packaged/CLI/MCP subprocess gates
   call and MCP start. CDX-style dumps go through `getTextLines` (status classified before body
   read, early break cancels the reader, 60s default timeout); JSON through `getJSON` (body parsed
   whatever the content type, a non-2xx keeps its text as `HTTPError.body`, 30s default timeout).
-- Local MCP from source: `src/cli.ts` imports the `mcp` command from a runtime URL of
-  `src/commands/mcp.ts` when the bin is built, `URLS_DIST` is not `1`, the path has no
-  `node_modules` segment (Node refuses to strip types there) and the file exists (the npm package
-  ships only `dist`). Otherwise it takes the bundled command. Every runtime import on that path is
-  a `dependency`, so no devDependency guard. `test/eval-mcp.mjs` sets `URLS_DIST=1` to keep testing
+- Local MCP from source: a bare `urls mcp` from the built bin imports `src/mcp.ts` by runtime URL
+  when `URLS_DIST` is not `1`, Node strips types (`process.features.typescript`), the path has no
+  `node_modules` segment and the file exists (the npm package ships only `dist`). Anything else,
+  `mcp --help` included, goes to `runCli` and the bundle. Every runtime import on that path is a
+  `dependency`, so no devDependency guard. `test/eval-mcp.mjs` sets `URLS_DIST=1` to keep testing
   the bundle. Relative imports end in `.ts` and `erasableSyntaxOnly` holds, or plain Node cannot
   run `src/`.
+- Two discover commands, on purpose. The tool `urls_discover` is the bounded page for a model;
+  the CLI's `discover` (`urls_list` in `src/cli-commands.ts`, CLI only) takes its place there and
+  stays what a pipe wants: bare URLs, unbounded, comma lists, `-p -n -m -f -j`, `--no-scope`.
+  It has no `--json` (`-j` is the data form), prints nothing on stdout for an empty result and
+  says so on stderr. The long aliases citty had (`-ns`, `-us`, `-uos`) are gone: `runCli` takes one
+  letter.
+- Tool text: `formatDiscoverPages` writes a `[source] N URLs for "domain"` line with the limit note,
+  then one URL per line, a dated one ending in `first..last` capture days, and under
+  `reference: true` a `via <query URL>` line where the query changes. `ext`, `queryKeys`, `source`
+  and `input` stay in the details: the URL and the header already say them. Source text goes
+  through `oneLine` in the formatter (the docs worker uses it too) and `sanitizeText` in the
+  executor; `domain` and `provider` through `sanitizeLine` before they are echoed.
+- `src/core/**` and `src/providers/**` import no package, so the docs worker bundles them with no
+  dependency of its own. `@agntn/tools` stays in `src/tools.ts`, `tool-operations.ts`, `cli*.ts`,
+  `mcp.ts` and `ai.ts`, which nothing under `docs/` imports.
 - Cancellation: every provider request takes `options.signal`, composed with the timeout in the
-  client; a caller abort surfaces as the caller's reason. MCP (`extra.signal`), AI SDK
-  (`abortSignal`), Pi and OMP (`execute` third argument) hand over the host's signal.
+  client; a caller abort surfaces as the caller's reason. Every adapter hands the host's signal to
+  `execute` as `context.signal`.
 - An unknown `provider` key throws `UnknownProviderError` with the registered keys in its message,
   since MCP, Pi and OMP show the agent only the message. A typo costs one retry, not a call to
   `urls_providers`.
@@ -117,7 +147,7 @@ test/eval-cli.mjs etc.     - packaged/CLI/MCP subprocess gates
   Do not treat scope as DNS records or as a domain list. Dedup keys go through `normalizeUrl`.
   CDX sources pass archive timestamps into the collector as `firstSeen` / `lastSeen`.
 - Limit: `MAX_DISCOVER_RESULTS` (100000) is the published bound. `UrlCollector` clamps provided
-  limits; CLI rejects out of range; MCP/AI schemas use the same constant. Absent limit stays
+  limits; the tool and command schemas use the same constant and refuse the rest. Absent limit stays
   unbounded aside from per-source page safeguards on the library and CLI only: the agent
   surfaces (MCP, AI SDK, Pi, OMP) go through `runDiscoverPage`, which defaults to
   `DEFAULT_DISCOVER_LIMIT` (100, next to the bound in `core/types.ts`) and fetches one URL past
@@ -126,8 +156,8 @@ test/eval-cli.mjs etc.     - packaged/CLI/MCP subprocess gates
   there (page safeguard: AlienVault 20 pages, urlscan and VirusTotal 50; a cursor VirusTotal
   refuses to follow; an Arquivo response that fills its 10000-row request cap), which it reports
   through `DiscoverOptions.onTruncated` and the page carries as `truncated`. Filters cannot
-  reach those rows, because they apply to what the source returned. `reference` stays off the records unless the JSON surfaces (MCP,
-  AI SDK) ask for it; Pi and OMP print URLs only and take no such switch.
+  reach those rows, because they apply to what the source returned. `reference` stays off the
+  records and the text unless the call asks for it, on any host.
 
 ## API audit (2026-09-02)
 

@@ -1,73 +1,56 @@
 #!/usr/bin/env node
 
-/** Urls CLI - unified passive URL discovery commands */
+/** Urls CLI: `discover` for pipes, a command per tool, and the MCP server. */
+
 import { existsSync } from "node:fs";
 import { sep } from "node:path";
 import { fileURLToPath } from "node:url";
-import { defineCommand, runMain } from "citty";
-import type McpCommand from "./commands/mcp.ts";
-import { version } from "./version.ts";
+import { runCli } from "@agntn/tools/cli";
+import { cliOptions } from "./cli-commands.ts";
+import type { createMcpServer } from "./mcp.ts";
 
-/** The same file from `src/cli.ts` and `dist/cli.mjs`; the npm package does not ship it. */
-const sourceMcpCommand = new URL("../src/commands/mcp.ts", import.meta.url);
-const sourceMcpCommandPath = fileURLToPath(sourceMcpCommand);
+/** Built at runtime, so the bundler leaves `src` out. The npm package ships only `dist`. */
+const sourceMcp = new URL("../src/mcp.ts", import.meta.url);
+const sourceMcpPath = fileURLToPath(sourceMcp);
 
 /**
- * Narrows the module a runtime URL import returned, which TypeScript types as `any`.
- * @param value - The imported module namespace.
- * @returns {value is { default: typeof McpCommand }} Whether it exports a default command.
+ * Narrows what a runtime URL import returned, which TypeScript types as `any`.
+ *
+ * @param value - The imported module.
+ * @returns {boolean} Whether it exports `createMcpServer`.
  */
-function isCommandModule(value: unknown): value is { default: typeof McpCommand } {
-  return typeof value === "object" && value !== null && "default" in value;
+function isMcpModule(value: unknown): value is { createMcpServer: typeof createMcpServer } {
+  return typeof value === "object" && value !== null && "createMcpServer" in value;
 }
 
 /**
- * Loads the MCP command. A built bin inside a checkout runs the live source, like the Pi and OMP
- * extensions, so a local server needs a restart after a change instead of `pnpm build`. Node
- * never strips types under `node_modules`, so an installed copy keeps the bundle, and
- * `URLS_DIST=1` keeps it everywhere, for tests of the built output. The URL is built at runtime
- * so the bundler leaves `src` out.
- * @returns {Promise<typeof McpCommand>} The citty command that starts the stdio server.
+ * In a checkout a bare `urls mcp` serves `src/` live. `URLS_DIST=1` keeps the bundle.
+ *
+ * @param argv - Arguments after the binary.
+ * @returns {boolean} Whether to serve `src/`.
  */
-async function loadMcpCommand(): Promise<typeof McpCommand> {
-  const fromSource =
-    !import.meta.url.endsWith(".ts") &&
-    process.env.URLS_DIST !== "1" &&
-    !sourceMcpCommandPath.includes(`${sep}node_modules${sep}`) &&
-    existsSync(sourceMcpCommandPath);
-  if (!fromSource) return (await import("./commands/mcp.ts")).default;
-  const module: unknown = await import(sourceMcpCommand.href);
-  if (!isCommandModule(module)) {
-    throw new TypeError(`${sourceMcpCommandPath} has no default command`);
-  }
-  return module.default;
+function servesSource(argv: readonly string[]): boolean {
+  return (
+    argv.length === 1 &&
+    argv[0] === "mcp" &&
+    process.env["URLS_DIST"] !== "1" &&
+    Boolean(process.features.typescript) &&
+    !sourceMcpPath.includes(`${sep}node_modules${sep}`) &&
+    existsSync(sourceMcpPath)
+  );
 }
 
-/**
- * Ends the process once the reader of stdout or stderr is gone, as after `| head -1` or a pager that
- * quits early. Node ignores SIGPIPE, so without a listener the next write throws `EPIPE` with a
- * stack trace. The exit code stays whatever the command set.
- * @param error - The error the stream emitted.
- */
-function exitOnClosedPipe(error: Readonly<NodeJS.ErrnoException>): void {
-  if (error.code !== "EPIPE") throw error;
-  process.exit();
+/** Serves `src/mcp.ts` over stdio, to 2025 and 2026 clients alike. */
+async function serveSource(): Promise<void> {
+  const module: unknown = await import(sourceMcp.href);
+  if (!isMcpModule(module)) throw new TypeError(`${sourceMcpPath} has no createMcpServer`);
+  const { serveStdio } = await import("@modelcontextprotocol/server/stdio");
+  serveStdio(() => module.createMcpServer());
 }
 
-process.stdout.on("error", exitOnClosedPipe);
-process.stderr.on("error", exitOnClosedPipe);
-
-const main = defineCommand({
-  meta: {
-    name: "urls",
-    version,
-    description: "Unified passive URL discovery CLI",
-  },
-  subCommands: {
-    discover: () => import("./commands/discover.ts").then((m) => m.default),
-    providers: () => import("./commands/providers.ts").then((m) => m.default),
-    mcp: loadMcpCommand,
-  },
-});
-
-await runMain(main);
+const argv = process.argv.slice(2);
+if (servesSource(argv)) {
+  await serveSource();
+} else {
+  await runCli(cliOptions, argv);
+}

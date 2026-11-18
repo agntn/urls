@@ -1,4 +1,5 @@
 import {
+  formatDiscoverPages,
   InvalidInputError,
   isAllProviders,
   providers,
@@ -41,8 +42,8 @@ async function compare(domain: string, options: DiscoverPageOptions): Promise<Se
 }
 
 /**
- * One `urls_discover` call through the executor the MCP server uses, so the page shows what an
- * agent would get, text included. `provider` is a registry key or `all`.
+ * One `urls_discover` call through the discovery and the formatter the tool uses, so the page
+ * shows what an agent would get, text included. `provider` is a registry key or `all`.
  */
 export default defineEventHandler(async (event) => {
   const query = getQuery(event);
@@ -70,14 +71,14 @@ export default defineEventHandler(async (event) => {
         const fetchedAt = new Date().toISOString();
         if (isAllProviders(key)) {
           const outcomes = await compare(domain, options);
-          const value: DiscoverAnswer = { mode: "comparison", text: JSON.stringify(outcomes, null, 2), outcomes, fetchedAt };
+          const value: DiscoverAnswer = { mode: "comparison", text: formatDiscoverPages(domain, outcomes), outcomes, fetchedAt };
           return { value, degraded: outcomes.some((entry) => entry.error !== undefined) };
         }
         const outcome = await runDiscoverPage(domain, options, key);
         if (outcome.mode === "single") {
           const value: DiscoverAnswer = {
             mode: "single",
-            text: JSON.stringify({ provider: outcome.provider, ...outcome.page }, null, 2),
+            text: formatDiscoverPages(domain, [{ provider: outcome.provider, result: outcome.page }]),
             provider: outcome.provider,
             page: outcome.page,
             fetchedAt,

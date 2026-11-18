@@ -4,5 +4,6 @@ import { formatProviders, listProviders } from "@agntn/urls";
 export default defineEventHandler((event) => {
   const providers = listProviders();
   markPublic(event, 60 * 60);
-  return { text: JSON.stringify(providers, null, 2), table: formatProviders(providers), providers };
+  const table = formatProviders(providers);
+  return { text: table, table, providers };
 });

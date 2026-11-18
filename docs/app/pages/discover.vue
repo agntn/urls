@@ -284,7 +284,7 @@ const title = computed(() => `urls_discover("${state.domain ?? form.domain}")`);
                 :title="title"
                 :text="state.answer.text"
                 source="content[0].text"
-                description="The text an MCP client receives for this call, from the same executor."
+                description="The text every host hands the model for this call. One formatter, no dialects."
               />
             </ExplorerPanel>
           </template>

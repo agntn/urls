@@ -7,8 +7,8 @@
  */
 import { spawn } from "node:child_process";
 import { fileURLToPath } from "node:url";
-import { Client } from "@modelcontextprotocol/sdk/client/index.js";
-import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
+import { Client } from "@modelcontextprotocol/client";
+import { StdioClientTransport } from "@modelcontextprotocol/client/stdio";
 
 const CLI = fileURLToPath(new URL("../dist/cli.mjs", import.meta.url));
 const LIVE = process.env.URLS_EVAL_OFFLINE !== "1";
@@ -89,7 +89,7 @@ check(
   "providers reports the sources and the unconfigured backend",
   providers.isError !== true &&
     firstText(providers).includes("alienvault") &&
-    firstText(providers).includes('"requiresKey": true'),
+    firstText(providers).includes("(requires API key)"),
   firstText(providers),
 );
 
@@ -97,7 +97,24 @@ const schemaReject = await client.callTool({
   name: "urls_discover",
   arguments: { domain: "   " },
 });
-check("schema rejects an empty domain", schemaReject.isError === true, firstText(schemaReject));
+check(
+  "schema rejects an empty domain and says where",
+  schemaReject.isError === true && firstText(schemaReject).includes("/domain"),
+  firstText(schemaReject),
+);
+
+const pinned = new Client(
+  { name: "urls-eval-2026", version: "1.0.0" },
+  { versionNegotiation: { mode: { pin: "2026-07-28" } } },
+);
+await pinned.connect(new StdioClientTransport({ command: "node", args: [CLI, "mcp"], env }));
+check(
+  "a client pinned to the 2026 protocol gets in",
+  pinned.getNegotiatedProtocolVersion() === "2026-07-28" &&
+    (await pinned.listTools()).tools.length === 2,
+  String(pinned.getNegotiatedProtocolVersion()),
+);
+await pinned.close();
 
 const unknown = await client.callTool({
   name: "urls_discover",
@@ -115,13 +132,11 @@ if (LIVE) {
     arguments: { domain: "example.com", provider: "alienvault", limit: 5 },
   });
   check(
-    "live discover answers with the provider name, the page bound, and URLs",
+    "live discover answers with the source, its count, and one URL per line",
     discover.isError !== true &&
-      firstText(discover).includes('"provider": "alienvault"') &&
-      firstText(discover).includes('"limit": 5') &&
-      firstText(discover).includes('"hasMore": ') &&
-      firstText(discover).includes('"urls"') &&
-      !firstText(discover).includes('"reference"'),
+      /^\[alienvault\] [1-5] URLs for "example\.com"/u.test(firstText(discover)) &&
+      firstText(discover).includes("\n  http") &&
+      !firstText(discover).includes("  via "),
     firstText(discover),
   );
 } else {

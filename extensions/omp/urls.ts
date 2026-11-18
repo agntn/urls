@@ -1,255 +1,47 @@
 /** OMP extension: Urls - unified passive URL discovery tools. */
 import { existsSync } from "node:fs";
 import { fileURLToPath } from "node:url";
-import { stripVTControlCharacters } from "node:util";
 
-import type { AgentToolResult, ExtensionAPI } from "@oh-my-pi/pi-coding-agent";
-import { Text } from "@oh-my-pi/pi-coding-agent";
-import type { Theme } from "@oh-my-pi/pi-coding-agent/modes/theme/theme";
+import { registerOmpTools } from "@agntn/tools/omp";
+import type { ExtensionAPI } from "@oh-my-pi/pi-coding-agent";
 
-import type * as UrlsModule from "../../dist/index.d.mts";
+import type * as UrlsTools from "../../dist/tools.d.mts";
 
-const sourceModulePath = fileURLToPath(new URL("../../src/index.ts", import.meta.url));
-let urlsModulePromise: Promise<typeof UrlsModule> | undefined;
+/** Longest argument on the status line, cut before the adapter's sanitizer sees it. */
+const PREVIEW_LENGTH = 80;
+
+const sourceModulePath = fileURLToPath(new URL("../../src/tools.ts", import.meta.url));
 
 /**
- * Load current source in development and fall back to the built package in distributions.
+ * Source in a checkout, build in the package; compiled OMP resolves only literal specifiers.
  *
- * Both specifiers stay literal: OMP rewrites bare dependencies only for imports
- * it can see statically. existsSync chooses the branch; it does not build a URL
- * for a single import().
- *
- * @returns {Promise<typeof UrlsModule>} The library module, source in development, built package in distributions.
+ * @returns {Promise<typeof UrlsTools>} The tools module.
  */
-function loadLibrary(): Promise<typeof UrlsModule> {
-  urlsModulePromise ??= existsSync(sourceModulePath)
-    ? (import("../../src/index.ts") as unknown as Promise<typeof UrlsModule>)
-    : (import("../../dist/index.mjs") as Promise<typeof UrlsModule>);
-
-  return urlsModulePromise;
+function loadTools(): Promise<typeof UrlsTools> {
+  return (
+    existsSync(sourceModulePath) ? import("../../src/tools.ts") : import("../../dist/tools.mjs")
+  ) as Promise<typeof UrlsTools>;
 }
 
-/**
- * Renderer interpolations cross the terminal trust boundary: model arguments and external values
- * may carry ANSI/OSC escape sequences or raw C0/C1 control bytes that OMP's Text component passes
- * through to the terminal unchanged. String() first, because hostile JSON is not bound by the
- * declared parameter types.
- *
- * Control bytes are stripped with code points, not a regex class, so `no-control-regex` stays on.
- */
-const SPACE_RUNS = / +/g;
+type Args = Readonly<Record<string, unknown>>;
+
+const describeCall: Record<string, (args: Args) => string> = {
+  urls_providers: () => "list",
+  urls_discover: (args) => String(args["domain"]).slice(0, PREVIEW_LENGTH),
+};
 
 /**
- * Replace C0/C1 bytes with spaces, optionally keeping newline.
+ * Register the urls tools with the OMP host; the library loads on the first call.
  *
- * @param text Already-stripped-of-VT text.
- * @param keepNewline Preserve U+000A.
- * @returns {string} Text without other control bytes.
+ * @param pi - The OMP extension API.
  */
-function replaceControlBytes(text: string, keepNewline: boolean): string {
-  let out = "";
-  for (const char of text) {
-    const code = char.codePointAt(0) ?? 0;
-    const isControl = code <= 0x1f || (code >= 0x7f && code <= 0x9f);
-    if (keepNewline && code === 0x0a) {
-      out += char;
-      continue;
-    }
-    out += isControl ? " " : char;
-  }
-  return out;
-}
-
-/**
- * Sanitize one interpolated value for the terminal.
- *
- * @param value Value to sanitize.
- * @returns {string} Sanitized single-line text.
- */
-export function sanitizeTerminalText(value: unknown): string {
-  return replaceControlBytes(stripVTControlCharacters(String(value)), false)
-    .replace(SPACE_RUNS, " ")
-    .trim();
-}
-
-/**
- * Sanitize a multi-line tool output while keeping its line and indent structure.
- *
- * @param text Multi-line output.
- * @returns {string} Sanitized multi-line text.
- */
-function sanitizeTerminalBlock(text: string): string {
-  return replaceControlBytes(stripVTControlCharacters(text), true);
-}
-
-type UrlsToolResult = AgentToolResult<undefined>;
-
-function textResult(text: string): UrlsToolResult {
-  return {
-    content: [{ type: "text", text: sanitizeTerminalBlock(text) }],
-    details: undefined,
-  };
-}
-
-/**
- * Register Urls tools with the OMP extension host.
- *
- * OMP validates tool parameters with its own TypeBox build, so schemas must come from the
- * host-injected facade rather than a standalone typebox import.
- *
- * @param pi Host-injected extension API.
- */
-export default function urlsExtension(pi: ExtensionAPI): void {
-  const { Type } = pi.typebox;
+export default async function urlsExtension(pi: ExtensionAPI): Promise<void> {
   pi.setLabel("Urls");
-
-  type RenderCallOptions = { readonly isPartial?: boolean; readonly spinnerFrame?: number };
-
-  /**
-   * Render the status line with the host theme. The `/tui` barrel stays off the load path:
-   * compiled OMP does not inject it, and the checkout copy dies on `@oh-my-pi/pi-tui`.
-   *
-   * @param title Tool title.
-   * @param description Short call description.
-   * @param options Render state.
-   * @param theme Host theme passed to `renderCall`.
-   * @returns {Text} One themed status line.
-   */
-  function statusLine(
-    title: string,
-    description: string,
-    options: RenderCallOptions,
-    theme: Theme,
-  ): Text {
-    const icon = options.isPartial
-      ? options.spinnerFrame === undefined
-        ? theme.styledSymbol("status.pending", "muted")
-        : (theme.spinnerFrames[options.spinnerFrame % theme.spinnerFrames.length] ??
-          theme.styledSymbol("status.running", "accent"))
-      : theme.styledSymbol("status.done", "success");
-    const detail = sanitizeTerminalText(description);
-    const heading = theme.fg("accent", title);
-
-    return new Text(`${icon} ${heading}${detail ? `: ${theme.fg("muted", detail)}` : ""}`, 0, 0);
-  }
-
-  const discoverParameters = Type.Object({
-    domain: Type.String({
-      description: "Target domain to discover URLs for, for example 'example.com'",
-      minLength: 1,
-    }),
-    limit: Type.Optional(
-      Type.Integer({
-        description:
-          "Maximum number of URLs to return; the answer says when the source had more. Defaults to 100; accepted range: 1-100000.",
-        minimum: 1,
-        maximum: 100000,
-      }),
+  const { urlsTools } = await loadTools();
+  registerOmpTools(pi, urlsTools, {
+    Text: pi.pi.Text,
+    renderers: Object.fromEntries(
+      Object.entries(describeCall).map(([name, describe]) => [name, { describeCall: describe }]),
     ),
-    match: Type.Optional(
-      Type.Array(Type.String({ minLength: 1 }), {
-        description:
-          "Keep only URLs containing at least one of these substrings (case-insensitive)",
-      }),
-    ),
-    filter: Type.Optional(
-      Type.Array(Type.String({ minLength: 1 }), {
-        description: "Drop URLs containing any of these substrings (case-insensitive)",
-      }),
-    ),
-    noScope: Type.Optional(
-      Type.Boolean({
-        description: "Disable the default host-based scope and keep every URL a source returns",
-      }),
-    ),
-    urlScope: Type.Optional(
-      Type.Array(Type.String({ minLength: 1 }), {
-        description:
-          "Keep only URLs matching at least one URL-scope pattern (prefix or glob with *). Patterns apply to the full URL, not a domain.",
-      }),
-    ),
-    urlOutScope: Type.Optional(
-      Type.Array(Type.String({ minLength: 1 }), {
-        description:
-          "Drop URLs matching any URL-out-scope pattern (prefix or glob with *). Patterns apply to the full URL.",
-      }),
-    ),
-    ext: Type.Optional(
-      Type.Array(Type.String({ minLength: 1 }), {
-        description: "Keep only URLs whose path ends with one of these extensions (js, json).",
-      }),
-    ),
-    hasQuery: Type.Optional(
-      Type.Boolean({
-        description: "Keep only URLs that still have query keys after tracking keys are dropped.",
-      }),
-    ),
-    from: Type.Optional(
-      Type.String({
-        description: "Inclusive start of the seen-at window (archive digits or ISO date).",
-      }),
-    ),
-    to: Type.Optional(
-      Type.String({
-        description: "Inclusive end of the seen-at window (archive digits or ISO date).",
-      }),
-    ),
-    provider: Type.Optional(
-      Type.String({
-        description:
-          "Registered source key, or 'all' to compare every source; use urls_providers to list all sources",
-        minLength: 1,
-      }),
-    ),
-  });
-
-  pi.registerTool({
-    name: "urls_discover",
-    label: "Urls Discover",
-    description:
-      "Enumerate URLs known for a domain from passive sources. Returns one URL per line, at most 100 unless limit says otherwise, and ends with a note when the source had more; pass provider 'all' to compare every source.",
-    parameters: discoverParameters,
-    approval: "read",
-    renderCall(args, options, theme) {
-      return statusLine("Urls Discover", String(args.domain), options, theme);
-    },
-    async execute(_toolCallId, params, signal): Promise<UrlsToolResult> {
-      const lib = await loadLibrary();
-      const options = {
-        limit: params.limit,
-        match: params.match,
-        filter: params.filter,
-        noScope: params.noScope,
-        urlScope: params.urlScope,
-        urlOutScope: params.urlOutScope,
-        ext: params.ext,
-        hasQuery: params.hasQuery,
-        from: params.from,
-        to: params.to,
-        signal,
-      };
-      const outcome = await lib.runDiscoverPage(params.domain, options, params.provider);
-      if (outcome.mode === "comparison") {
-        return textResult(lib.formatDiscoverPages(params.domain, outcome.outcomes));
-      }
-      return textResult(lib.formatDiscoverPage(outcome.page));
-    },
-  });
-
-  const providersParameters = Type.Object({});
-
-  pi.registerTool({
-    name: "urls_providers",
-    label: "Urls Providers",
-    description: "List registered passive URL source keys accepted by urls_discover.",
-    parameters: providersParameters,
-    approval: "read",
-    renderCall(_args, options, theme) {
-      return statusLine("Urls Providers", "list", options, theme);
-    },
-    async execute(): Promise<UrlsToolResult> {
-      const lib = await loadLibrary();
-      return textResult(lib.formatProviders(lib.listProviders()));
-    },
   });
 }
