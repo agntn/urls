@@ -62,7 +62,7 @@ const text = computed(() => (props.sample ? toolText(props.sample) : ""));
       :title="`urls_discover(&quot;${target}&quot;)`"
       :text="text"
       source="content[0].text"
-      description="The text an MCP client receives for this call, recorded through the same executor."
+      description="The text every host hands the model for this call, from a recorded answer."
     />
 
     <footer class="console-footer console-footer-plain">

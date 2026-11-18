@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { listProviders, UrlCollector } from "../../src/index.ts";
-import { LANDING_SAMPLES, restoreRecord } from "../../docs/app/utils/discover.ts";
+import { LANDING_SAMPLES, restoreRecord, toolText } from "../../docs/app/utils/discover.ts";
 import { PROVIDERS } from "../../docs/app/utils/providers.ts";
 
 describe("docs landing samples", () => {
@@ -16,6 +16,16 @@ describe("docs landing samples", () => {
       const { url, source, input, firstSeen, lastSeen } = record;
       const stored = { url, source, input, ...(firstSeen ? { firstSeen, lastSeen } : {}) };
       expect(JSON.stringify(restoreRecord(stored))).toBe(JSON.stringify(record));
+    }
+  });
+
+  it("prints every recorded comparison in under a third of its JSON", () => {
+    for (const sample of LANDING_SAMPLES) {
+      const json = JSON.stringify(sample.outcomes, null, 2);
+      const text = toolText(sample);
+
+      expect(text.split("\n")[0]).toMatch(/^\[\w+\] (?:\d+ URLs for|error: )/u);
+      expect(text.length * 3).toBeLessThan(json.length);
     }
   });
 

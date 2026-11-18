@@ -11,3 +11,5 @@ Tests exercise public behavior and real integration seams with Vitest.
 - Eval gates (`test/eval-*.mjs`) run against the built `dist`; `URLS_EVAL_OFFLINE=1` keeps CI
   deterministic. Inside a checkout the built bin serves MCP from `src/`, so `eval-mcp.mjs` sets
   `URLS_DIST=1` for the bundle and `eval-cli.mjs` checks both modes.
+- `test/unit/cli.test.ts` drives `createCli(cliOptions)` in process with both streams spied; the
+  extension tests register into strict host doubles that throw on a member they don't stub.

@@ -47,13 +47,13 @@ export { isAllProviders, resolveProvider, selectProvider } from "./core/resolve.
 export type { SelectedProvider } from "./core/resolve.ts";
 export { discoverAll, discoverWithFallback, serializeOutcomes } from "./core/all.ts";
 export type { ProviderOutcome, SerializedOutcome } from "./core/all.ts";
-export { runDiscover, runDiscoverPage } from "./tool-operations.ts";
+export { runDiscover, runDiscoverPage } from "./core/discover.ts";
 export type {
   DiscoverPage,
   DiscoverPageOptions,
   DiscoverPageResult,
   DiscoverResult,
-} from "./tool-operations.ts";
+} from "./core/discover.ts";
 export {
   formatDiscoverAll,
   formatDiscoverPage,

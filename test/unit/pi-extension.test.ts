@@ -1,47 +1,67 @@
+import { wireSchema } from "@agntn/tools";
 import type {
   ExtensionAPI,
-  ExtensionContext,
+  ExtensionToolContext,
   ToolDefinition,
 } from "@earendil-works/pi-coding-agent";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { Value } from "typebox/value";
 import { requireTool, stubHanging, stubJSON } from "../helpers.ts";
 import { DEFAULT_DISCOVER_LIMIT } from "../../src/core/types.ts";
+import { urlsTools } from "../../src/tools.ts";
 import urlsExtension from "../../extensions/pi/urls.ts";
 
-/**
- * Register the extension's tools against a capturing fake host.
- *
- * @returns {Map<string, ToolDefinition>} The registered tools by name.
- */
-function registerExtensionTools(): Map<string, ToolDefinition> {
+/* SAFETY: the adapter only calls registerTool; reading any other member fails by name. */
+async function registerExtensionTools(): Promise<Map<string, ToolDefinition>> {
   const tools = new Map<string, ToolDefinition>();
-  const api = {
-    registerTool(tool: ToolDefinition) {
-      tools.set(tool.name, tool);
+  const api = new Proxy(
+    {
+      registerTool(tool: ToolDefinition) {
+        tools.set(tool.name, tool);
+      },
     },
-  };
+    {
+      get(target, key, receiver) {
+        if (typeof key === "symbol" || key === "then" || Reflect.has(target, key)) {
+          const member: unknown = Reflect.get(target, key, receiver);
+          return member;
+        }
+        throw new Error(`ExtensionAPI.${String(key)} is not stubbed`);
+      },
+    },
+  );
 
-  urlsExtension(api as unknown as ExtensionAPI);
+  await urlsExtension(api as unknown as ExtensionAPI);
   return tools;
 }
 
-/** SAFETY: the tested execute functions do not read ExtensionContext. */
-const unusedContext = {} as ExtensionContext;
+/* What `hostContext` in `@agntn/tools` reads off Pi's `ctx`, for a host without a UI. */
+const context = { hasUI: false, ui: undefined } as unknown as ExtensionToolContext;
+
+async function run(name: string, params: unknown, signal?: AbortSignal) {
+  const tool = requireTool(await registerExtensionTools(), name);
+  return tool.execute("test", params as never, signal, undefined, context);
+}
+
+async function text(name: string, params: unknown): Promise<string> {
+  return ((await run(name, params)).content[0] as { text: string }).text;
+}
 
 afterEach(() => {
   vi.unstubAllGlobals();
 });
 
 describe("urls Pi extension", () => {
-  it("registers the complete tool set", () => {
-    const tools = registerExtensionTools();
+  it("registers the complete tool set with the shared schemas", async () => {
+    const tools = await registerExtensionTools();
 
-    expect([...tools.keys()]).toEqual(["urls_discover", "urls_providers"]);
+    expect([...tools.keys()]).toEqual(["urls_providers", "urls_discover"]);
+    for (const definition of urlsTools) {
+      expect(requireTool(tools, definition.name).parameters).toEqual(wireSchema(definition));
+    }
   });
 
-  it("names each tool in every prompt guideline", () => {
-    const tools = registerExtensionTools();
+  it("names each tool in every prompt guideline", async () => {
+    const tools = await registerExtensionTools();
 
     for (const tool of tools.values()) {
       expect(tool.promptGuidelines).not.toHaveLength(0);
@@ -51,97 +71,81 @@ describe("urls Pi extension", () => {
     }
   });
 
-  it("declares an integer discover limit from 1 through 100000", () => {
-    const tool = requireTool(registerExtensionTools(), "urls_discover");
+  it.each([0, 100001, 1.5])("refuses discover limit %s before any request", async (limit) => {
+    const fetch = stubJSON({ has_next: false, url_list: [] });
 
-    expect(Value.Check(tool.parameters, { domain: "example.com", limit: 1 })).toBe(true);
-    expect(Value.Check(tool.parameters, { domain: "example.com", limit: 100000 })).toBe(true);
-    expect(Value.Check(tool.parameters, { domain: "example.com", limit: 0 })).toBe(false);
-    expect(Value.Check(tool.parameters, { domain: "example.com", limit: 100001 })).toBe(false);
-    expect(Value.Check(tool.parameters, { domain: "example.com", limit: 1.5 })).toBe(false);
+    await expect(run("urls_discover", { domain: "example.com", limit })).rejects.toThrow("/limit");
+    expect(fetch).not.toHaveBeenCalled();
   });
 
-  it("names the shared default limit in the limit description", () => {
-    const tool = requireTool(registerExtensionTools(), "urls_discover");
-    const limit = (tool.parameters as { properties: { limit: { description: string } } }).properties
-      .limit;
+  it.each([1, 100000])("takes discover limit %s", async (limit) => {
+    stubJSON({ has_next: false, url_list: [] });
+
+    await expect(
+      text("urls_discover", { domain: "example.com", provider: "alienvault", limit }),
+    ).resolves.toBe('[alienvault] 0 URLs for "example.com"');
+  });
+
+  it("names the shared default limit in the limit description", async () => {
+    const tool = requireTool(await registerExtensionTools(), "urls_discover");
+    const { limit } = (tool.parameters as { properties: { limit: { description: string } } })
+      .properties;
 
     expect(limit.description).toContain(`Defaults to ${DEFAULT_DISCOVER_LIMIT};`);
     expect(tool.promptGuidelines?.join("\n")).toContain(`at most ${DEFAULT_DISCOVER_LIMIT} `);
+    expect(tool.description).toContain(`at most ${DEFAULT_DISCOVER_LIMIT} `);
   });
 
-  it("discover ends with the limit note when the source had more", async () => {
+  it("discover says on its first line when the source had more", async () => {
     stubJSON({
       has_next: false,
       url_list: [{ url: "https://example.com/a" }, { url: "https://example.com/b" }],
     });
-    const tool = requireTool(registerExtensionTools(), "urls_discover");
 
-    const result = await tool.execute(
-      "test",
-      { domain: "example.com", provider: "alienvault", limit: 1 },
-      undefined,
-      undefined,
-      unusedContext,
+    await expect(
+      text("urls_discover", { domain: "example.com", provider: "alienvault", limit: 1 }),
+    ).resolves.toBe(
+      '[alienvault] 1 URLs for "example.com" (limit 1 reached; raise limit or narrow with match, ext, urlScope)\n  https://example.com/a',
     );
+  });
+
+  it("requires a non-empty domain", async () => {
+    await expect(run("urls_discover", {})).rejects.toThrow("domain");
+    await expect(run("urls_discover", { domain: "" })).rejects.toThrow("/domain");
+    await expect(run("urls_discover", { domain: "  " })).rejects.toThrow("/domain");
+  });
+
+  it("refuses an argument the schema doesn't declare", async () => {
+    await expect(run("urls_discover", { domain: "example.com", lmit: 1 })).rejects.toThrow(
+      'unknown property "lmit"',
+    );
+  });
+
+  it("discover names the source and returns one URL per line", async () => {
+    stubJSON({ has_next: false, url_list: [{ url: "https://example.com/a" }] });
+
+    const result = await run("urls_discover", { domain: "example.com", provider: "alienvault" });
 
     expect(result.content).toEqual([
-      {
-        type: "text",
-        text: "https://example.com/a\nlimit 1 reached; raise limit or narrow with match, ext, urlScope",
-      },
+      { type: "text", text: '[alienvault] 1 URLs for "example.com"\n  https://example.com/a' },
     ]);
+    expect(result.details).toMatchObject({ provider: "alienvault", count: 1, hasMore: false });
   });
 
-  it("requires a non-empty domain", () => {
-    const tool = requireTool(registerExtensionTools(), "urls_discover");
-
-    expect(Value.Check(tool.parameters, { domain: "example.com" })).toBe(true);
-    expect(Value.Check(tool.parameters, {})).toBe(false);
-    expect(Value.Check(tool.parameters, { domain: "" })).toBe(false);
-  });
-
-  it("discover returns one URL per line from the selected source", async () => {
-    stubJSON({ has_next: false, url_list: [{ url: "https://example.com/a" }] });
-    const tool = requireTool(registerExtensionTools(), "urls_discover");
-
-    const result = await tool.execute(
-      "test",
-      { domain: "example.com", provider: "alienvault" },
-      undefined,
-      undefined,
-      unusedContext,
+  it("fails the call on an unknown source, since Pi takes a returned value as success", async () => {
+    await expect(run("urls_discover", { domain: "example.com", provider: "nope" })).rejects.toThrow(
+      "Unknown provider: nope; known providers: alienvault",
     );
-
-    expect(result.content).toEqual([{ type: "text", text: "https://example.com/a" }]);
-  });
-
-  it("discover reports an empty result without network noise", async () => {
-    stubJSON({ has_next: false, url_list: [] });
-    const tool = requireTool(registerExtensionTools(), "urls_discover");
-
-    const result = await tool.execute(
-      "test",
-      { domain: "example.com", provider: "alienvault" },
-      undefined,
-      undefined,
-      unusedContext,
-    );
-
-    expect(result.content).toEqual([{ type: "text", text: "No URLs found" }]);
   });
 
   it("discover forwards the host's abort signal to the request", async () => {
     stubHanging();
-    const tool = requireTool(registerExtensionTools(), "urls_discover");
     const controller = new AbortController();
 
-    const pending = tool.execute(
-      "test",
+    const pending = run(
+      "urls_discover",
       { domain: "example.com", provider: "alienvault" },
       controller.signal,
-      undefined,
-      unusedContext,
     );
     controller.abort(new Error("host stopped"));
 
@@ -149,13 +153,10 @@ describe("urls Pi extension", () => {
   });
 
   it("lists providers without model or network access", async () => {
-    const tool = requireTool(registerExtensionTools(), "urls_providers");
+    const listing = await text("urls_providers", {});
 
-    const result = await tool.execute("test", {}, undefined, undefined, unusedContext);
-
-    const text = (result.content[0] as { text: string }).text;
-    expect(text).toMatch(/^Registered providers \(7\):/);
-    expect(text).toContain("alienvault");
-    expect(text).toContain("virustotal");
+    expect(listing).toMatch(/^Registered providers \(7\):/);
+    expect(listing).toContain("alienvault");
+    expect(listing).toContain("virustotal");
   });
 });

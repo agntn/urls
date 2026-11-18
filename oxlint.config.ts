@@ -34,7 +34,7 @@ export default defineConfig({
               "URL",
             ],
           },
-          { from: "package", name: "Client", package: "@modelcontextprotocol/sdk" },
+          { from: "package", name: "Client", package: "@modelcontextprotocol/client" },
           // Classes with methods: the rule cannot see that call sites do not mutate them.
           { from: "file", name: ["Provider", "UrlCollector", "UrlsError"] },
         ],

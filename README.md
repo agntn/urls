@@ -123,9 +123,9 @@ For an MCP client:
 
 Two tools: `urls_discover` and `urls_providers`. Your agent can ask which sources exist before picking one. Set API keys in the host environment when needed.
 
-`urls_discover` hands the model at most 100 URLs per source unless `limit` says otherwise, and tells it when the source had more. Narrowing with `match`, `ext`, or `urlScope` usually beats raising the limit. The query URL behind each record stays out of the MCP and AI SDK answers unless `reference` is set; Pi and OMP print the URLs alone.
+Every host hands the model the same text. `urls_discover` answers with at most 100 URLs per source, with a note when there's more. Narrowing beats raising the limit. Set `reference: true` to add the query URL. It's useful, but repeated query URLs do eat tokens.
 
-Using AI SDK 7 or later? Import `discoverTool` and `providersTool` from `@agntn/urls/ai`. The server factory is `createMcpServer` from `@agntn/urls/mcp`.
+On AI SDK 7? Import `urlsAiTools` from `@agntn/urls/ai`. For MCP, `createMcpServer` comes from `@agntn/urls/mcp` and returns an unconnected server.
 
 ## 🚫 What this does not do
 
