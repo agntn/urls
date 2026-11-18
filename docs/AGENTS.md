@@ -26,7 +26,7 @@ docs/
 ## Commands
 
 ```bash
-pnpm install                          # from docs/
+pnpm install                          # anywhere in the repo, it's one workspace
 pnpm dev                              # http://localhost:3000
 pnpm build                            # Cloudflare Workers output in .output/, content routes prerendered
 pnpm deploy                           # build, then wrangler deploy to urls.agntn.dev
@@ -35,7 +35,7 @@ node scripts/record-landing.ts        # refresh the landing samples (live networ
 
 Deployment: Nitro preset `cloudflare_module`. Nuxt Content needs a D1 binding named `DB` and the response cache a KV binding named `CACHE`. `wrangler.jsonc` binds both to `agntn-urls`: the D1 database lives in the EU jurisdiction, which the binding doesn't repeat because the id already names it.
 
-The site bundles `@agntn/urls` from `../src` through the alias in `nuxt.config.ts`, so it needs neither `dist/` nor the root `node_modules`. The part of `src/` the site imports has no npm dependency today. A new package import under `src/core` or `src/providers` needs the same entry in `docs/package.json`, or the Workers build fails while a local build still passes.
+The site bundles `@agntn/urls` from `../src` through the alias in `nuxt.config.ts`, so it never waits on `dist/`. `docs/` is a member of the root workspace: one lockfile, versions from the catalogs in the root `pnpm-workspace.yaml`, and nothing hoisted, so every package the site imports stands in `docs/package.json`. `test/unit/docs-dependencies.test.ts` in the root holds that list to the imports.
 
 ## Live data
 

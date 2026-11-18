@@ -1,7 +1,57 @@
+packages:
+  - docs
+
 allowBuilds:
   "@google/genai": false
+  better-sqlite3: true
+  esbuild: true
   onnxruntime-node: false
   protobufjs: false
   sharp: false
+  vue-demi: true
+  workerd: true
+
 minimumReleaseAgeExclude:
   - "@agntn/*"
+
+# One version per name for the library and docs/, which bundles the library from ../src.
+catalogs:
+  deps:
+    "@agntn/tools": 0.3.1
+    "@modelcontextprotocol/server": 2.4.0
+    better-sqlite3: 12.11.1
+    docus: 5.13.0
+    nuxt: 4.5.2
+    ohash: 2.0.11
+    ufo: 1.6.4
+  dev:
+    "@agntn/ox": 0.1.0
+    "@earendil-works/pi-coding-agent": 1.5.2
+    "@iconify-json/lucide": 1.2.128
+    "@iconify-json/simple-icons": 1.2.94
+    "@iconify-json/vscode-icons": 1.2.76
+    "@modelcontextprotocol/client": 2.4.0
+    "@nuxt/content": 3.16.0
+    "@nuxt/ui": 4.11.0
+    "@oh-my-pi/pi-coding-agent": 18.0.0
+    "@types/node": 26.2.0
+    "@vueuse/core": 14.4.0
+    ai: 7.0.114
+    changelogen: 0.6.2
+    h3: 1.15.11
+    obuild: 0.4.40
+    oxfmt: 0.63.0
+    oxlint: 1.78.0
+    oxlint-tsgolint: ^7.0.2001
+    shiki: 4.4.3
+    typescript: 7.0.2
+    vitest: 4.1.11
+    wrangler: 4.128.0
+
+cleanupUnusedCatalogs: true
+
+# TypeScript 7 belongs to the library. Docus still parses with tools that stop at 6.0.
+resolvePeersFromWorkspaceRoot: false
+
+# Keeps pnpm 12's env document out of the lockfile. GitHub reads that one as zero dependencies.
+pmOnFail: ignore

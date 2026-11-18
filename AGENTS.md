@@ -35,9 +35,9 @@ Keep AGENTS.md updated with project status.
   provider (a listing, a page, an auth failure, a missing `domain`) and in compiled omp 18.22.2.
   `test/eval-packed.mjs` resolves the tarball next to every peer host at its dev pin.
 - Docs site in `docs/` (Docus on Cloudflare Workers, urls.agntn.dev): guide, one page per source,
-  and `/discover`, an explorer over `runDiscoverPage`. It bundles `src/` through an alias, has its
-  own lockfile and `AGENTS.md`, and stays out of the root lint. D1 (EU jurisdiction) and KV are
-  both `agntn-urls`.
+  and `/discover`, an explorer over `runDiscoverPage`. It bundles `src/` through an alias, is a
+  member of the root workspace with its own `AGENTS.md`, and stays out of the root lint. D1 (EU
+  jurisdiction) and KV are both `agntn-urls`.
 - v0.2.0 is the first public release (0.1.0 on npm was a test run). It reached npm with provenance
   through a manual Publish dispatch: a tag checkout needs `--no-git-checks`, and a rerun would
   reuse the broken workflow from the tag, so `publish.yml` takes `workflow_dispatch` with a `tag`.
@@ -63,7 +63,8 @@ Keep AGENTS.md updated with project status.
 - **Lint**: oxlint + oxfmt through `@agntn/ox` (spread, not extends). Readonly allow-list is host
   ABI, lib types with mutating methods, and the three classes the rule cannot see as unused
   mutably (`Provider`, `UrlCollector`, `UrlsError`). Eval `*.mjs` override only `no-unsafe-*`.
-- **Package manager**: pnpm 11
+- **Package manager**: pnpm 12, one workspace with `docs/`; versions live in the `deps` and `dev`
+  catalogs of `pnpm-workspace.yaml`
 
 ## Scripts
 
@@ -76,7 +77,7 @@ Keep AGENTS.md updated with project status.
 - `pnpm fmt` - build + auto-fix lint + format
 - `pnpm typecheck` - base tsc + extensions tsc
 - `pnpm release` - test, build, changelogen release
-- `pnpm docs` / `pnpm docs:build` - docs site dev server and Workers build, from `docs/`
+- `pnpm run docs` / `pnpm docs:build` - docs site dev server and Workers build, from `docs/`
 
 ## Structure
 
@@ -94,7 +95,7 @@ src/ai.ts, src/mcp.ts      - toAiTools and createMcpServer over the same list
 src/server-info.ts         - name, version, description for `--help` and MCP
 extensions/pi/             - registerPiTools over dist/tools.mjs (src/tools.ts in a checkout)
 extensions/omp/            - registerOmpTools; both import() specifiers stay literal
-docs/                      - Docus site for urls.agntn.dev; own install, see docs/AGENTS.md
+docs/                      - Docus site for urls.agntn.dev; a workspace member, see docs/AGENTS.md
 test/unit/                 - vitest unit tests
 test/eval-cli.mjs etc.     - packaged/CLI/MCP subprocess gates
 ```

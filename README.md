@@ -142,7 +142,7 @@ pnpm build       # Build the library, CLI, and provider modules
 pnpm test        # Run unit tests
 pnpm lint        # Check code and formatting
 pnpm typecheck   # Check library and extension types
-pnpm docs        # Docs site with the explorer, from docs/
+pnpm run docs    # Docs site with the explorer, from docs/
 
 # Exercise CLI, MCP, and the packed package without live discovery
 URLS_EVAL_OFFLINE=1 pnpm test:cli

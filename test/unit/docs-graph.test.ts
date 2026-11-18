@@ -5,7 +5,7 @@ import { describe, expect, it } from "vitest";
 
 const root = fileURLToPath(new URL("../..", import.meta.url));
 
-/** The docs worker installs `docs/` alone, so a package imported here breaks its build. */
+/** The docs worker and the explorer page bundle this graph, so a package here ships in both. */
 describe("what the docs site bundles from src", () => {
   it("imports no package, only relative files and Node builtins", () => {
     const files = ["src/index.ts", ...globSync("src/{core,providers}/**/*.ts", { cwd: root })];
