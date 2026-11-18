@@ -25,7 +25,9 @@ Keep AGENTS.md updated with project status.
   OMP first call) dropped from 41 to 6 ms and MCP start to `tools/list` from 193 to 161 ms.
 - The OMP status line comes from `describeCall` and the adapter, drawn with `pi.pi.Text`; nothing
   imports `@oh-my-pi/pi-coding-agent` at runtime. Compiled OMP injects no `/tui`, so the unit test
-  throws on that import.
+  throws on that import. The extension passes its own `renderResult`: the adapter's default result
+  line is a status and a badge, and OMP then never draws the answer. Ten lines collapsed, all of
+  them expanded.
 - A reader that quits early (`urls providers | head -1`) ends the CLI quietly: `runCli` exits on
   `EPIPE` from stdout or stderr and rethrows any other stream error. `test/eval-cli.mjs` closes the
   pipe before the first write.

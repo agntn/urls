@@ -141,6 +141,42 @@ describe("urls OMP extension", () => {
     );
   });
 
+  /** The adapter's own result line is a status and a badge, which hides the answer for good. */
+  it("shows the answer in the result row, a long one cut until it's expanded", async () => {
+    stubJSON({
+      has_next: false,
+      url_list: Array.from({ length: 12 }, (_, index) => ({ url: `https://example.com/${index}` })),
+    });
+    const tool = requireTool((await registerExtensionTools()).tools, "urls_discover");
+    const result = await tool.execute(
+      "test",
+      { domain: "example.com", provider: "alienvault" } as never,
+      undefined,
+      undefined,
+      context,
+    );
+    const draw = (expanded: boolean) => {
+      const drawn = tool.renderResult?.(result, { expanded, isPartial: false }, theme);
+      return (drawn as unknown as CapturedText).text.split("\n");
+    };
+
+    expect(draw(false)).toEqual([
+      '[alienvault] 12 URLs for "example.com"',
+      ...Array.from({ length: 9 }, (_, index) => `  https://example.com/${index}`),
+      "... 3 more lines, expand to see them",
+    ]);
+    expect(draw(true)).toHaveLength(13);
+    expect(draw(true).at(-1)).toBe("  https://example.com/11");
+  });
+
+  it("shows the whole provider table without a cut", async () => {
+    const tool = requireTool((await registerExtensionTools()).tools, "urls_providers");
+    const result = await tool.execute("test", {} as never, undefined, undefined, context);
+    const drawn = tool.renderResult?.(result, { expanded: false, isPartial: false }, theme);
+
+    expect((drawn as unknown as CapturedText).text.split("\n")).toHaveLength(8);
+  });
+
   it.each([0, 100001, 1.5])("refuses discover limit %s in the core", async (limit) => {
     await expect(run("urls_discover", { domain: "example.com", limit })).rejects.toThrow(
       ToolInputError,
