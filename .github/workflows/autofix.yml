@@ -19,7 +19,7 @@ jobs:
           node-version: 26
           cache: pnpm
 
-      - run: pnpm i --frozen-lockfile
+      - run: pnpm i --frozen-lockfile --filter @agntn/urls
 
       - name: Fix lint issues
         run: pnpm fmt

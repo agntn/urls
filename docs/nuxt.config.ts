@@ -1,23 +1,13 @@
 import { resolve } from "node:path";
 import { urlsTheme } from "./shiki-theme";
 
-/** Bundled from the checkout's sources: a deploy needs neither dist/ nor the root node_modules. */
+/** Bundled from the checkout's sources, so a deploy never waits on dist/. */
 const repoRoot = resolve(import.meta.dirname, "..");
 
 export default defineNuxtConfig({
   extends: ["docus"],
-  /** The repo root is its own pnpm workspace, so Nuxt must not treat it as this site's. */
-  workspaceDir: import.meta.dirname,
   alias: {
     "@agntn/urls": resolve(repoRoot, "src/index.ts"),
-  },
-  /** The browser loads the library from ../src and the version from ../package.json. */
-  vite: {
-    server: {
-      fs: {
-        allow: [repoRoot],
-      },
-    },
   },
   devtools: { enabled: false },
   telemetry: false,

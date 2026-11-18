@@ -96,6 +96,17 @@ check(
   unpacked.stdout,
 );
 
+const shipped = spawnSync("tar", ["-xOf", join(ROOT, tarballName), "package/package.json"], {
+  encoding: "utf8",
+});
+check(
+  "the shipped manifest names versions, not the workspace catalog",
+  shipped.status === 0 &&
+    shipped.stdout.includes('"@agntn/tools"') &&
+    !shipped.stdout.includes("catalog:"),
+  shipped.stdout,
+);
+
 /**
  * The probe registers a provider through the main entry and reads it back through the mcp
  * entry. With a split registry chunk the probe key never shows up in urls_providers.
